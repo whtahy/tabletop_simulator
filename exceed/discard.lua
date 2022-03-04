@@ -3,8 +3,8 @@ scale_height = self.getScale().y
 scale_length = self.getScale().z
 
 discard_zones_table = {
-    Blue = getObjectFromGUID('0ce6e4'),
-    Red = getObjectFromGUID('ea519a')
+    Red = getObjectFromGUID('ea519a'),
+    Blue = getObjectFromGUID('0ce6e4')
 }
 
 function onLoad()
