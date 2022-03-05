@@ -53,6 +53,11 @@ function onObjectLeaveZone(zone, object)
     update_game(zone, object)
 end
 
+function onPlayerTurn(player, previous_player)
+    update_hp_counter('Red')
+    update_hp_counter('Blue')
+end
+
 function update_game(zone, object)
     -- not a card or deck -> no need to update
     if object.type ~= 'Card' and object.type ~= 'Deck' then
@@ -84,6 +89,27 @@ function update_gauge(player_color)
         end
     end
     gauge_text_table[player_color].TextTool.setValue(tostring(count))
+end
+
+function update_hp_counter(player_color)
+    local damage_counter = damage_counter_table[player_color]
+    local hp_counter = hp_counter_table[player_color]
+
+    -- calculate hp
+    local damage = damage_counter.Counter.getValue()
+    local old_hp = hp_counter.Counter.getValue()
+    local new_hp = old_hp - damage
+
+    -- animate hp and damage decrements
+    for i = 1, damage do
+        Wait.time(
+            function()
+                hp_counter.Counter.decrement()
+                damage_counter.Counter.decrement()
+            end,
+            0.1 * i
+        )
+    end
 end
 
 function update_card_counter(player_color)
