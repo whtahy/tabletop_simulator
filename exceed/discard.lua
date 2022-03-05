@@ -2,12 +2,9 @@ scale_width = self.getScale().x
 scale_height = self.getScale().y
 scale_length = self.getScale().z
 
-discard_zones_table = {
-    Red = getObjectFromGUID('ea519a'),
-    Blue = getObjectFromGUID('0ce6e4')
-}
-
 function onLoad()
+    discard_zones_table = Global.getTable('discard_zones_table')
+
     self.createButton({
         function_owner  = self,
         click_function  = 'discard',
