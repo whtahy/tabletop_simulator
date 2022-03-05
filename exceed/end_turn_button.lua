@@ -3,9 +3,6 @@ scale_height = self.getScale().y
 scale_length = self.getScale().z
 
 function onLoad()
-    damage_counter_table = Global.getTable('damage_counter_table')
-    hp_counter_table = Global.getTable('hp_counter_table')
-
     self.createButton({
         function_owner  = self,
         click_function  = 'end_turn',
@@ -21,37 +18,28 @@ function onLoad()
 end
 
 function end_turn()
+    update_hp_counter('Red')
+    update_hp_counter('Blue')
     Turns.turn_color = Turns.getNextTurnColor()
+end
 
-    --get value from damage_counter_table
-    local redDamage = damage_counter_table['Red'].Counter.getValue()
-    local blueDamage = damage_counter_table['Blue'].Counter.getValue()
+function update_hp_counter(player_color)
+    local damage_counter = Global.getTable('damage_counter_table')[player_color]
+    local hp_counter = Global.getTable('hp_counter_table')[player_color]
 
-    --minus damage from hp_counter_table
-    local redCurrHP = hp_counter_table['Red'].Counter.getValue()
-    local blueCurrHP = hp_counter_table['Blue'].Counter.getValue()
+    -- calculate hp
+    local damage = damage_counter.Counter.getValue()
+    local old_hp = hp_counter.Counter.getValue()
+    local new_hp = old_hp - damage
 
-    local newRedHP = redCurrHP - redDamage
-    local newBlueHP = blueCurrHP - blueDamage
-
-    --animated hp decrementer
-    for i = 1, redDamage do
-        Wait.time(function() hp_counter_table['Red'].Counter.decrement() end, (0.2 * i))
+    -- animate hp and damage decrements
+    for i = 1, damage do
+        Wait.time(
+            function()
+                hp_counter.Counter.decrement()
+                damage_counter.Counter.decrement()
+            end,
+            0.1 * i
+        )
     end
-
-    for i = 1, blueDamage do
-        Wait.time(function() hp_counter_table['Blue'].Counter.decrement() end, (0.2 * i))
-    end
-
-    --immediate result version
-    --hp_counter_table['Red'].Counter.setValue(newRedHP)
-    --hp_counter_table['Blue'].Counter.setValue(newBlueHP)
-
-    --set value of damage_counter_table to 0
-    Wait.time(
-    function()
-        damage_counter_table['Red'].Counter.setValue(0)
-        damage_counter_table['Blue'].Counter.setValue(0)
-    end,
-    1)
 end

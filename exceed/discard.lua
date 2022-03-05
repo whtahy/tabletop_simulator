@@ -3,8 +3,6 @@ scale_height = self.getScale().y
 scale_length = self.getScale().z
 
 function onLoad()
-    discard_zones_table = Global.getTable('discard_zones_table')
-
     self.createButton({
         function_owner  = self,
         click_function  = 'discard',
@@ -29,7 +27,7 @@ function discard(object, player_color)
     end
 
     -- otherwise, discard a random card from hand
-    local zone = discard_zones_table[player_color]
+    local zone = Global.getTable('discard_zones_table')[player_color]
     local card = hand[math.random(1, #hand)]
     card.use_hands = false
     card.setPositionSmooth(zone.getPosition())

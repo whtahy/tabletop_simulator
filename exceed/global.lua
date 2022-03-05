@@ -1,48 +1,48 @@
--- NOTE: can't use getObjectFromGUID in naked global
+-- NOTE: can't use getObjectFromGUID in global global
 
-default_hp = 30
+max_hp = 30
 
 function onLoad()
-    getObjectFromGUIDs()
-
     for _, obj in ipairs(getAllObjects()) do
         if obj.hasTag('Static') or obj.hasTag('Table') then
+            obj.locked = true
             obj.interactable = false
             obj.drag_selectable = false
         end
     end
-end
 
-function getObjectFromGUIDs()
+    -- global tables
+
+    -- draw decks
     deck_zones_table = {
-        Red = getObjectFromGUID('b367a0'),
-        Blue = getObjectFromGUID('fff7cf')
-    }
+        Red = getObjectFromGUID('2ecbe4'),
+        Blue = getObjectFromGUID('30de79')}
+
+    -- card counting
     card_counter_table = {
         Red = getObjectFromGUID('2cf636'),
-        Blue = getObjectFromGUID('1a640f')
-    }
+        Blue = getObjectFromGUID('1a640f')}
+
+    -- discards
     discard_zones_table = {
         Red = getObjectFromGUID('ea519a'),
-        Blue = getObjectFromGUID('0ce6e4')
-    }
+        Blue = getObjectFromGUID('0ce6e4')}
+
+    -- gauges
     gauge_zones_table = {
         Red = getObjectFromGUID('f1a600'),
-        Blue = getObjectFromGUID('059d91')
-    }
+        Blue = getObjectFromGUID('059d91')}
     gauge_text_table = {
         Red = getObjectFromGUID('36b535'),
-        Blue = getObjectFromGUID('ffed4f')
-    }
+        Blue = getObjectFromGUID('ffed4f')}
 
+    -- hp and damage counters
     damage_counter_table = {
         Red = getObjectFromGUID('6037c1'),
-        Blue = getObjectFromGUID('988e6c')
-    }
+        Blue = getObjectFromGUID('988e6c')}
     hp_counter_table = {
         Red = getObjectFromGUID('2d53fe'),
-        Blue = getObjectFromGUID('7c2894')
-    }
+        Blue = getObjectFromGUID('7c2894')}
 end
 
 function onObjectEnterZone(zone, object)
@@ -59,7 +59,7 @@ function update_game(zone, object)
         return nil
     end
 
-    -- otherwise, update the player's gauge
+    -- otherwise, update player's gauge
     if zone == gauge_zones_table['Red'] then
         update_gauge('Red')
         update_card_counter('Red')

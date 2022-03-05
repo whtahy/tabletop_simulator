@@ -3,14 +3,6 @@ scale_height = self.getScale().y
 scale_length = self.getScale().z
 
 function onLoad()
-    damage_counter_table = Global.getTable('damage_counter_table')
-    hp_counter_table = Global.getTable('hp_counter_table')
-    card_counter_table = Global.getTable('card_counter_table')
-
-    discard_zones_table = Global.getTable('discard_zones_table')
-    gauge_zones_table = Global.getTable('gauge_zones_table')
-    deck_zones_table = Global.getTable('deck_zones_table')
-
     self.createButton({
         function_owner  = self,
         click_function  = 'reset_game',
@@ -26,72 +18,75 @@ function onLoad()
 end
 
 function reset_game()
-    reset_hp()
-    reset_counter_zone()
-    reset_deck()
+    -- reset decks
+    reset_deck('Red')
+    reset_deck('Blue')
+
+    -- reset card counters
+    reset_card_counter('Red')
+    reset_card_counter('Blue')
+
+    -- reset hp and damage counters
+    reset_counters('Red')
+    reset_counters('Blue')
 end
 
-function reset_hp()
-    damage_counter_table['Red'].Counter.setValue(0)
-    damage_counter_table['Blue'].Counter.setValue(0)
+function reset_deck(player_color)
+    -- send object to deck zone
+    local deck_zone = Global.getTable('deck_zones_table')[player_color]
+    local function fetch(object)
+        if object.type == 'Card' then
+            object.use_hands = false
+            Wait.time(function() object.use_hands = true end, 0.5)
+        end
+        object.setRotationSmooth({x = 0, y = 180, z = 180})
+        object.setPositionSmooth(deck_zone.getPosition())
+    end
 
-    hp_counter_table['Red'].Counter.setValue(Global.getVar('default_hp'))
-    hp_counter_table['Blue'].Counter.setValue(Global.getVar('default_hp'))
-end
-
-function reset_counter_zone()
-    face_up_cards_in_counter_zone('Red')
-    face_up_cards_in_counter_zone('Blue')
-end
-
-function face_up_cards_in_counter_zone(player_color)
-    local card_counter_objects = card_counter_table[player_color].getObjects()
-
-    for _, obj in ipairs(card_counter_objects) do
-        if obj.type == 'Card' then
-            if obj.is_face_down then
-                obj.flip()
+    -- fetch all objects from zone
+    local function fetch_all(objects)
+        for _, obj in ipairs(objects) do
+            if obj.type == 'Card' or obj.type == 'Deck' then
+                fetch(obj)
             end
         end
     end
+
+    -- fetch from discard, gauge, hand
+    fetch_all(Global.getTable('discard_zones_table')[player_color].getObjects())
+    fetch_all(Global.getTable('gauge_zones_table')[player_color].getObjects())
+    fetch_all(Player[player_color].getHandObjects())
+
+    -- shuffle deck
+    Wait.condition(
+        function() end, -- noop
+        function()
+            for _, obj in ipairs(deck_zone.getObjects()) do
+                if obj.type == 'Deck' then
+                    obj.setRotationSmooth({x = 0, y = 180, z = 180})
+                end
+                if obj.type == 'Deck' and obj.getQuantity() == 30 then
+                    Wait.time(function() obj.shuffle() end, 0.3)
+                    return true
+                end
+            end
+            return false
+        end
+    )
 end
 
-function reset_deck()
-    group_cards_to_deck_zone('Red')
-    group_cards_to_deck_zone('Blue')
+function reset_counters(player_color)
+    local damage_counter = Global.getTable('damage_counter_table')[player_color]
+    local hp_counter = Global.getTable('hp_counter_table')[player_color]
+    hp_counter.Counter.setValue(Global.getVar('max_hp'))
+    damage_counter.Counter.setValue(0)
 end
 
-function group_cards_to_deck_zone(player_color)
-    local discard_zones_table = discard_zones_table[player_color].getObjects()
-    local gauge_zones_table = gauge_zones_table[player_color].getObjects()
-    local deck_zones_table = deck_zones_table[player_color].getObjects()
-    local hand = Player[player_color].getHandObjects()
-
-    local mainDeck
-
-    for _, obj in pairs(deck_zones_table) do
-        if obj.type == 'Deck' then
-            mainDeck = obj
+function reset_card_counter(player_color)
+    local card_counter = Global.getTable('card_counter_table')[player_color]
+    for _, obj in ipairs(card_counter.getObjects()) do
+        if obj.type == 'Card' and obj.is_face_down then
+            obj.flip()
         end
     end
-
-    for _, obj in pairs(discard_zones_table) do
-        if obj.type == 'Card' or obj.type == 'Deck' then
-            mainDeck.putObject(obj)
-        end
-    end
-
-    for _, obj in pairs(gauge_zones_table) do
-        if obj.type == 'Card' or obj.type == 'Deck' then
-            mainDeck.putObject(obj)
-        end
-    end
-
-    for _, obj in pairs(hand) do
-        if obj.type == 'Card' or obj.type == 'Deck' then
-            mainDeck.putObject(obj)
-        end
-    end
-
-    Wait.time(function() mainDeck.shuffle() end, 1)
 end
