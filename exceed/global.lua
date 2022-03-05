@@ -113,4 +113,68 @@ function update_hp_counter(player_color)
 end
 
 function update_card_counter(player_color)
+    -- create table of used card names (discard + gauge)
+    local used_cards = {}
+    local function count(zone)
+        for _, obj in ipairs(zone.getObjects()) do
+            if obj.is_face_down or obj.isSmoothMoving() then
+                goto continue
+            elseif obj.type == 'Card' then
+                table.insert(used_cards, obj.getName())
+            elseif obj.type == 'Deck' then
+                for _, c in ipairs(obj.getObjects()) do
+                    table.insert(used_cards, c.name)
+                end
+            end
+            ::continue::
+        end
+    end
+
+    count(discard_zones_table[player_color])
+    count(gauge_zones_table[player_color])
+
+    -- create 2 card counter tables: 1 for face up, 1 for face down
+    local card_counter = card_counter_table[player_color].getObjects()
+    local face_down = {}
+    local face_up = {}
+    for _, obj in ipairs(card_counter) do
+        if obj.type ~= 'Card' then
+            goto continue
+        elseif obj.is_face_down then
+            table.insert(face_down, obj)
+        elseif not obj.is_face_down then
+            table.insert(face_up, obj)
+        end
+        ::continue::
+    end
+
+    -- NOTE
+    -- used_cards stores card name strings
+    -- face_down and face_up store cards -> use getName()
+    -- removing cards from used_cards creates holes -> use pairs (NOT ipairs)
+
+    -- remove face down cards from used_cards table
+    for _, c in ipairs(face_down) do
+        for k, v in pairs(used_cards) do
+            if c.getName() == v then
+                used_cards[k] = nil
+                break
+            end
+        end
+    end
+
+    -- flip remaining cards in used_cards table
+    for _, c in pairs(used_cards) do
+        if c == nil then
+            goto continue
+        end
+        for k, v in pairs(face_up) do
+            if v and c == v.getName() then
+                face_up[k] = nil
+                v.flip()
+                break
+            end
+        end
+        ::continue::
+    end
 end
