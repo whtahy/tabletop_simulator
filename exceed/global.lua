@@ -43,14 +43,60 @@ function onLoad()
     hp_counter_table = {
         Red = getObjectFromGUID('2d53fe'),
         Blue = getObjectFromGUID('7c2894')}
+
+    --distance counter zones
+    distance_counter_table = {
+        one = getObjectFromGUID('c15202'),
+        two = getObjectFromGUID('d3e91a'),
+        three = getObjectFromGUID('11a02f'),
+        four = getObjectFromGUID('e0ff3b'),
+        five = getObjectFromGUID('21d308'),
+        six = getObjectFromGUID('bd1420'),
+        seven = getObjectFromGUID('6e5860'),
+        eight = getObjectFromGUID('5613fe'),
+        nine = getObjectFromGUID('8cf38a')}
+
+    distance_text = getObjectFromGUID('246491')
+end
+
+function update_distance()
+    local distance = {}
+    for i, v in pairs(distance_counter_table) do
+        local count = #v.getObjects()
+        if #v.getObjects() > 1 then
+            for _, c in pairs(v.getObjects()) do
+                if (c.type == 'Card') then
+                    table.insert(distance, tonumber(v.getName()))
+                end
+            end
+        end
+    end
+
+    --only update if there are 2 cards on board
+    if #distance > 1 then
+        local d1 = 0
+        local d2 = 0
+
+        for i, v in pairs(distance) do
+            if d1 == 0 then
+                d1 = v
+            elseif d2 == 0 then
+                d2 = v
+            end
+        end
+
+        distance_text.TextTool.setValue(tostring(math.abs(d1 - d2)))
+    end
 end
 
 function onObjectEnterZone(zone, object)
     update_game(zone, object)
+    update_distance()
 end
 
 function onObjectLeaveZone(zone, object)
     update_game(zone, object)
+    update_distance()
 end
 
 function onPlayerTurn(player, previous_player)
