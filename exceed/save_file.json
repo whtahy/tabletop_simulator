@@ -1,7 +1,7 @@
 {
-  "SaveName": "Exceed v50",
-  "EpochTime": 1646578707,
-  "Date": "3/6/2022 11:58:27 PM",
+  "SaveName": "Exceed v54",
+  "EpochTime": 1646621804,
+  "Date": "3/6/2022 9:56:44 PM",
   "VersionNumber": "v13.1.1",
   "GameMode": "Exceed",
   "GameType": "",
@@ -233,10 +233,10 @@
     "SkipEmpty": false,
     "DisableInteractions": false,
     "PassTurns": true,
-    "TurnColor": "Red"
+    "TurnColor": ""
   },
   "DecalPallet": [],
-  "LuaScript": "-- NOTE: can't use getObjectFromGUID in global global\r\n\r\nmax_hp = 30\r\n\r\nfunction onLoad()\r\n    for _, obj in ipairs(getAllObjects()) do\r\n        if obj.hasTag('Static') or obj.hasTag('Table') then\r\n            obj.locked = true\r\n            obj.interactable = false\r\n            obj.drag_selectable = false\r\n        end\r\n    end\r\n\r\n    -- global tables\r\n\r\n    -- draw decks\r\n    deck_zones_table = {\r\n        Red = getObjectFromGUID('2ecbe4'),\r\n        Blue = getObjectFromGUID('30de79')}\r\n\r\n    -- card counting\r\n    card_counter_table = {\r\n        Red = getObjectFromGUID('2cf636'),\r\n        Blue = getObjectFromGUID('1a640f')}\r\n\r\n    -- discards\r\n    discard_zones_table = {\r\n        Red = getObjectFromGUID('ea519a'),\r\n        Blue = getObjectFromGUID('0ce6e4')}\r\n\r\n    -- gauges\r\n    gauge_zones_table = {\r\n        Red = getObjectFromGUID('f1a600'),\r\n        Blue = getObjectFromGUID('059d91')}\r\n    gauge_text_table = {\r\n        Red = getObjectFromGUID('36b535'),\r\n        Blue = getObjectFromGUID('ffed4f')}\r\n\r\n    -- hp and damage counters\r\n    damage_counter_table = {\r\n        Red = getObjectFromGUID('6037c1'),\r\n        Blue = getObjectFromGUID('988e6c')}\r\n    hp_counter_table = {\r\n        Red = getObjectFromGUID('2d53fe'),\r\n        Blue = getObjectFromGUID('7c2894')}\r\n\r\n    --distance counter zones\r\n    distance_counter_table = {\r\n        one = getObjectFromGUID('c15202'),\r\n        two = getObjectFromGUID('d3e91a'),\r\n        three = getObjectFromGUID('11a02f'),\r\n        four = getObjectFromGUID('e0ff3b'),\r\n        five = getObjectFromGUID('21d308'),\r\n        six = getObjectFromGUID('bd1420'),\r\n        seven = getObjectFromGUID('6e5860'),\r\n        eight = getObjectFromGUID('5613fe'),\r\n        nine = getObjectFromGUID('8cf38a')}\r\n\r\n    distance_text = getObjectFromGUID('246491')\r\nend\r\n\r\nfunction update_distance()\r\n    local distance = {}\r\n    for i, v in pairs(distance_counter_table) do\r\n        local count = #v.getObjects()\r\n        if #v.getObjects() > 1 then\r\n            for _, c in pairs(v.getObjects()) do\r\n                if (c.type == 'Card') then\r\n                    table.insert(distance, tonumber(v.getName()))\r\n                end\r\n            end\r\n        end\r\n    end\r\n\r\n    --only update if there are 2 cards on board\r\n    if #distance > 1 then\r\n        local d1 = 0\r\n        local d2 = 0\r\n\r\n        for i, v in pairs(distance) do\r\n            if d1 == 0 then\r\n                d1 = v\r\n            elseif d2 == 0 then\r\n                d2 = v\r\n            end\r\n        end\r\n\r\n        distance_text.TextTool.setValue(tostring(math.abs(d1 - d2)))\r\n    end\r\nend\r\n\r\nfunction onObjectEnterZone(zone, object)\r\n    update_game(zone, object)\r\n    update_distance()\r\nend\r\n\r\nfunction onObjectLeaveZone(zone, object)\r\n    update_game(zone, object)\r\n    update_distance()\r\nend\r\n\r\nfunction onPlayerTurn(player, previous_player)\r\n    update_hp_counter('Red')\r\n    update_hp_counter('Blue')\r\nend\r\n\r\nfunction update_game(zone, object)\r\n    -- not a card or deck -> no need to update\r\n    if object.type ~= 'Card' and object.type ~= 'Deck' then\r\n        return nil\r\n    end\r\n\r\n    -- otherwise, update player's gauge\r\n    if zone == gauge_zones_table['Red'] then\r\n        update_gauge('Red')\r\n        update_card_counter('Red')\r\n    elseif zone == discard_zones_table['Red'] then\r\n        update_card_counter('Red')\r\n    elseif zone == gauge_zones_table['Blue'] then\r\n        update_gauge('Blue')\r\n        update_card_counter('Blue')\r\n    elseif zone == discard_zones_table['Blue'] then\r\n        update_card_counter('Blue')\r\n    end\r\nend\r\n\r\nfunction update_gauge(player_color)\r\n    local gauge_objects = gauge_zones_table[player_color].getObjects()\r\n    local count = 0\r\n    for _, obj in ipairs(gauge_objects) do\r\n        if obj.type == 'Card' then\r\n            count = count + 1\r\n        elseif obj.type == 'Deck' then\r\n            count = count + #obj.getObjects()\r\n        end\r\n    end\r\n    gauge_text_table[player_color].TextTool.setValue(tostring(count))\r\nend\r\n\r\nfunction update_hp_counter(player_color)\r\n    local damage_counter = damage_counter_table[player_color]\r\n    local hp_counter = hp_counter_table[player_color]\r\n\r\n    -- calculate hp\r\n    local damage = damage_counter.Counter.getValue()\r\n    local old_hp = hp_counter.Counter.getValue()\r\n    local new_hp = old_hp - damage\r\n\r\n    -- animate hp and damage decrements\r\n    for i = 1, damage do\r\n        Wait.time(\r\n            function()\r\n                hp_counter.Counter.decrement()\r\n                damage_counter.Counter.decrement()\r\n            end,\r\n            0.1 * i\r\n        )\r\n    end\r\nend\r\n\r\nfunction update_card_counter(player_color)\r\n    -- create table of used card names (discard + gauge)\r\n    local used_cards = {}\r\n    local function count(zone)\r\n        for _, obj in ipairs(zone.getObjects()) do\r\n            if obj.is_face_down or obj.isSmoothMoving() then\r\n                goto continue\r\n            elseif obj.type == 'Card' then\r\n                table.insert(used_cards, obj.getName())\r\n            elseif obj.type == 'Deck' then\r\n                for _, c in ipairs(obj.getObjects()) do\r\n                    table.insert(used_cards, c.name)\r\n                end\r\n            end\r\n            ::continue::\r\n        end\r\n    end\r\n\r\n    count(discard_zones_table[player_color])\r\n    count(gauge_zones_table[player_color])\r\n\r\n    -- create 2 card counter tables: 1 for face up, 1 for face down\r\n    local card_counter = card_counter_table[player_color].getObjects()\r\n    local face_down = {}\r\n    local face_up = {}\r\n    for _, obj in ipairs(card_counter) do\r\n        if obj.type ~= 'Card' then\r\n            goto continue\r\n        elseif obj.is_face_down then\r\n            table.insert(face_down, obj)\r\n        elseif not obj.is_face_down then\r\n            table.insert(face_up, obj)\r\n        end\r\n        ::continue::\r\n    end\r\n\r\n    -- NOTE\r\n    -- used_cards stores card name strings\r\n    -- face_down and face_up store cards -> use getName()\r\n    -- removing cards from used_cards creates holes -> use pairs (NOT ipairs)\r\n\r\n    -- remove face down cards from used_cards table\r\n    for _, c in ipairs(face_down) do\r\n        for k, v in pairs(used_cards) do\r\n            if c.getName() == v then\r\n                used_cards[k] = nil\r\n                break\r\n            end\r\n        end\r\n    end\r\n\r\n    -- flip remaining cards in used_cards table\r\n    for _, c in pairs(used_cards) do\r\n        if c == nil then\r\n            goto continue\r\n        end\r\n        for k, v in pairs(face_up) do\r\n            if v and c == v.getName() then\r\n                face_up[k] = nil\r\n                v.flip()\r\n                break\r\n            end\r\n        end\r\n        ::continue::\r\n    end\r\nend\r\n",
+  "LuaScript": "-- NOTE: can't use getObjectFromGUID in global global\r\n\r\nmax_hp = 30\r\n\r\nfunction onLoad()\r\n    for _, obj in ipairs(getAllObjects()) do\r\n        if obj.hasTag('Static') or obj.hasTag('Table') then\r\n            obj.locked = true\r\n            obj.interactable = false\r\n            obj.drag_selectable = false\r\n        end\r\n    end\r\n\r\n    -- global tables\r\n\r\n    -- draw decks\r\n    deck_zones_table = {\r\n        Red = getObjectFromGUID('2ecbe4'),\r\n        Blue = getObjectFromGUID('30de79')}\r\n\r\n    -- card counting\r\n    card_counter_table = {\r\n        Red = getObjectFromGUID('2cf636'),\r\n        Blue = getObjectFromGUID('1a640f')}\r\n\r\n    -- discards\r\n    discard_zones_table = {\r\n        Red = getObjectFromGUID('ea519a'),\r\n        Blue = getObjectFromGUID('0ce6e4')}\r\n\r\n    -- gauges\r\n    gauge_zones_table = {\r\n        Red = getObjectFromGUID('f1a600'),\r\n        Blue = getObjectFromGUID('059d91')}\r\n    gauge_text_table = {\r\n        Red = getObjectFromGUID('36b535'),\r\n        Blue = getObjectFromGUID('ffed4f')}\r\n\r\n    -- hp and damage counters\r\n    damage_counter_table = {\r\n        Red = getObjectFromGUID('6037c1'),\r\n        Blue = getObjectFromGUID('988e6c')}\r\n    hp_counter_table = {\r\n        Red = getObjectFromGUID('2d53fe'),\r\n        Blue = getObjectFromGUID('7c2894')}\r\n\r\n    -- distance counter\r\n    arena_zone = getObjectFromGUID('a5a3ec')\r\n    distance_text = getObjectFromGUID('246491')\r\n    update_distance()\r\nend\r\n\r\nfunction onObjectEnterZone(zone, object)\r\n    update_game(zone, object)\r\n    if zone == arena_zone\r\n        and object.type == 'Card'\r\n        and object.getName():find('(C)', 1, true) then\r\n        update_distance()\r\n    end\r\nend\r\n\r\nfunction onObjectLeaveZone(zone, object)\r\n    update_game(zone, object)\r\n    if zone == arena_zone\r\n        and object.type == 'Card'\r\n        and object.getName():find('(C)', 1, true) then\r\n        update_distance()\r\n    end\r\nend\r\n\r\nfunction onPlayerTurn(player, previous_player)\r\n    update_hp_counter('Red')\r\n    update_hp_counter('Blue')\r\nend\r\n\r\nfunction update_distance()\r\n    -- get hero cards\r\n    local heroes = {}\r\n    for _, obj in ipairs(arena_zone.getObjects()) do\r\n        if obj.type == 'Card'\r\n            and obj.getName():find('(C)', 1, true)\r\n            and not obj.isSmoothMoving() then\r\n            table.insert(heroes, obj)\r\n        end\r\n    end\r\n\r\n    -- need exactly 2 hero cards\r\n    if #heroes ~= 2 then\r\n        return nil\r\n    end\r\n\r\n    -- calculate distance\r\n    local card_spacing_factor = 1.07\r\n    local card_width = heroes[1].getBounds().size.x\r\n    local x_distance = math.abs(\r\n        heroes[1].getPosition().x\r\n        - heroes[2].getPosition().x)\r\n    local tile_distance = round(x_distance / (card_width * card_spacing_factor))\r\n\r\n    distance_text.TextTool.setValue(tostring(tile_distance))\r\nend\r\n\r\nfunction update_game(zone, object)\r\n    -- not a card or deck -> no need to update\r\n    if object.type ~= 'Card' and object.type ~= 'Deck' then\r\n        return nil\r\n    end\r\n\r\n    -- otherwise, update player's gauge\r\n    if zone == gauge_zones_table['Red'] then\r\n        update_gauge('Red')\r\n        update_card_counter('Red')\r\n    elseif zone == discard_zones_table['Red'] then\r\n        update_card_counter('Red')\r\n    elseif zone == gauge_zones_table['Blue'] then\r\n        update_gauge('Blue')\r\n        update_card_counter('Blue')\r\n    elseif zone == discard_zones_table['Blue'] then\r\n        update_card_counter('Blue')\r\n    end\r\nend\r\n\r\nfunction update_gauge(player_color)\r\n    local gauge_objects = gauge_zones_table[player_color].getObjects()\r\n    local count = 0\r\n    for _, obj in ipairs(gauge_objects) do\r\n        if obj.type == 'Card' then\r\n            count = count + 1\r\n        elseif obj.type == 'Deck' then\r\n            count = count + #obj.getObjects()\r\n        end\r\n    end\r\n    gauge_text_table[player_color].TextTool.setValue(tostring(count))\r\nend\r\n\r\nfunction update_hp_counter(player_color)\r\n    local damage_counter = damage_counter_table[player_color]\r\n    local hp_counter = hp_counter_table[player_color]\r\n\r\n    -- calculate hp\r\n    local damage = damage_counter.Counter.getValue()\r\n    local old_hp = hp_counter.Counter.getValue()\r\n    local new_hp = old_hp - damage\r\n\r\n    -- animate hp and damage decrements\r\n    for i = 1, damage do\r\n        Wait.time(\r\n            function()\r\n                hp_counter.Counter.decrement()\r\n                damage_counter.Counter.decrement()\r\n            end,\r\n            0.1 * i\r\n        )\r\n    end\r\nend\r\n\r\nfunction update_card_counter(player_color)\r\n    -- create table of used card names (discard + gauge)\r\n    local used_cards = {}\r\n    local function count(zone)\r\n        for _, obj in ipairs(zone.getObjects()) do\r\n            if obj.is_face_down or obj.isSmoothMoving() then\r\n                goto continue\r\n            elseif obj.type == 'Card' then\r\n                table.insert(used_cards, obj.getName())\r\n            elseif obj.type == 'Deck' then\r\n                for _, c in ipairs(obj.getObjects()) do\r\n                    table.insert(used_cards, c.name)\r\n                end\r\n            end\r\n            ::continue::\r\n        end\r\n    end\r\n\r\n    count(discard_zones_table[player_color])\r\n    count(gauge_zones_table[player_color])\r\n\r\n    -- create 2 card counter tables: 1 for face up, 1 for face down\r\n    local card_counter = card_counter_table[player_color].getObjects()\r\n    local face_down = {}\r\n    local face_up = {}\r\n    for _, obj in ipairs(card_counter) do\r\n        if obj.type ~= 'Card' then\r\n            goto continue\r\n        elseif obj.is_face_down then\r\n            table.insert(face_down, obj)\r\n        elseif not obj.is_face_down then\r\n            table.insert(face_up, obj)\r\n        end\r\n        ::continue::\r\n    end\r\n\r\n    -- NOTE\r\n    -- used_cards stores card name strings\r\n    -- face_down and face_up store cards -> use getName()\r\n    -- removing cards from used_cards creates holes -> use pairs (NOT ipairs)\r\n\r\n    -- remove face down cards from used_cards table\r\n    for _, c in ipairs(face_down) do\r\n        for k, v in pairs(used_cards) do\r\n            if c.getName() == v then\r\n                used_cards[k] = nil\r\n                break\r\n            end\r\n        end\r\n    end\r\n\r\n    -- flip remaining cards in used_cards table\r\n    for _, c in pairs(used_cards) do\r\n        if c == nil then\r\n            goto continue\r\n        end\r\n        for k, v in pairs(face_up) do\r\n            if v and c == v.getName() then\r\n                face_up[k] = nil\r\n                v.flip()\r\n                break\r\n            end\r\n        end\r\n        ::continue::\r\n    end\r\nend\r\n\r\nfunction round(x)\r\n    return math.floor(x + 0.5)\r\nend\r\n",
   "LuaScriptState": "",
   "XmlUI": "<!-- Xml UI. See documentation: https://api.tabletopsimulator.com/ui/introUI/ -->",
   "SnapPoints": [
@@ -529,16 +529,16 @@
     },
     {
       "Position": {
-        "x": -29.09158,
+        "x": -29.0898762,
         "y": 0.9611349,
-        "z": 15.0977564
+        "z": 15.0977755
       }
     },
     {
       "Position": {
-        "x": -3.40000629,
+        "x": -3.403855,
         "y": 0.9611349,
-        "z": 14.2999868
+        "z": 14.3005409
       }
     }
   ],
@@ -3437,7 +3437,7 @@
       "ColorDiffuse": {
         "r": 0.7578398,
         "g": 0.7578398,
-        "b": 0.4211627
+        "b": 0.42116192
       },
       "LayoutGroupSortIndex": 0,
       "Value": 0,
@@ -4380,8 +4380,8 @@
       "Description": "",
       "GMNotes": "",
       "ColorDiffuse": {
-        "r": 0.390025556,
-        "g": 0.372561455,
+        "r": 0.3900248,
+        "g": 0.3725607,
         "b": 0.477351725
       },
       "LayoutGroupSortIndex": 0,
@@ -4785,7 +4785,7 @@
       "Description": "",
       "GMNotes": "",
       "ColorDiffuse": {
-        "r": 0.3802951,
+        "r": 0.380294323,
         "g": 0.6236934,
         "b": 0.457474053
       },
@@ -5325,9 +5325,9 @@
       "Description": "",
       "GMNotes": "",
       "ColorDiffuse": {
-        "r": 0.161755532,
-        "g": 0.08697779,
-        "b": 0.059465073
+        "r": 0.161754817,
+        "g": 0.08697719,
+        "b": 0.0594645068
       },
       "LayoutGroupSortIndex": 0,
       "Value": 0,
@@ -5660,9 +5660,9 @@
       "Description": "",
       "GMNotes": "",
       "ColorDiffuse": {
-        "r": 0.161755592,
-        "g": 0.08697783,
-        "b": 0.0594651178
+        "r": 0.161754876,
+        "g": 0.086977236,
+        "b": 0.05946455
       },
       "LayoutGroupSortIndex": 0,
       "Value": 0,
@@ -5885,7 +5885,7 @@
       "Description": "",
       "GMNotes": "",
       "ColorDiffuse": {
-        "r": 0.292679757,
+        "r": 0.292679369,
         "g": 0.963594,
         "b": 1.0,
         "a": 0.09803922
@@ -6399,7 +6399,7 @@
       "Description": "",
       "GMNotes": "",
       "ColorDiffuse": {
-        "r": 0.292679757,
+        "r": 0.292679369,
         "g": 0.963594,
         "b": 1.0,
         "a": 0.09803922
@@ -6913,7 +6913,7 @@
       "Description": "",
       "GMNotes": "",
       "ColorDiffuse": {
-        "r": 0.292679757,
+        "r": 0.292679369,
         "g": 0.963594,
         "b": 1.0,
         "a": 0.09803922
@@ -7427,9 +7427,9 @@
       "Description": "",
       "GMNotes": "",
       "ColorDiffuse": {
-        "r": 0.125487417,
-        "g": 0.125487417,
-        "b": 0.125487417
+        "r": 0.125487059,
+        "g": 0.125487059,
+        "b": 0.125487059
       },
       "Tags": [
         "Table"
@@ -8055,11 +8055,11 @@
       "Name": "Custom_PDF",
       "Transform": {
         "posX": -60.50921,
-        "posY": 0.05000042,
+        "posY": 0.05000043,
         "posZ": 18.7907333,
-        "rotX": 3.130451E-07,
+        "rotX": 3.17495136E-07,
         "rotY": 179.995544,
-        "rotZ": -8.387757E-09,
+        "rotZ": 1.0509057E-09,
         "scaleX": 5.0,
         "scaleY": 1.0,
         "scaleZ": 5.0
@@ -8103,7 +8103,7 @@
         "posX": -1.249999,
         "posY": -0.01815769,
         "posZ": 9.999998,
-        "rotX": -0.00484995265,
+        "rotX": -0.00484996149,
         "rotY": 359.675659,
         "rotZ": 6.45099E-05,
         "scaleX": 0.75,
@@ -8146,7 +8146,7 @@
         "posX": 1.25000048,
         "posY": -0.0181560516,
         "posZ": 9.999999,
-        "rotX": -0.0048456965,
+        "rotX": -0.0048456993,
         "rotY": 359.8769,
         "rotZ": 4.70674859E-05,
         "scaleX": 0.75,
@@ -8158,7 +8158,7 @@
       "GMNotes": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.250979334,
+        "g": 0.250978947,
         "b": 1.0
       },
       "LayoutGroupSortIndex": 0,
@@ -8431,7 +8431,7 @@
         "posX": 0.0,
         "posY": 0.0,
         "posZ": 60.5,
-        "rotX": 0.491813749,
+        "rotX": 0.491815031,
         "rotY": 180.004456,
         "rotZ": 0.00112776039,
         "scaleX": 10.0,
@@ -8579,8 +8579,8 @@
       "GMNotes": "",
       "ColorDiffuse": {
         "r": 0.7229965,
-        "g": 0.152406663,
-        "b": 0.358789265
+        "g": 0.1524063,
+        "b": 0.358788878
       },
       "LayoutGroupSortIndex": 0,
       "Value": 0,
@@ -8660,9 +8660,9 @@
         "posX": -4.5872364,
         "posY": 0.08091195,
         "posZ": -3.27321577,
-        "rotX": 0.590373933,
+        "rotX": 0.590375364,
         "rotY": 179.967041,
-        "rotZ": -0.0002277724,
+        "rotZ": -0.00022777266,
         "scaleX": 4.0,
         "scaleY": 1.0,
         "scaleZ": 4.0
@@ -8671,7 +8671,7 @@
       "Description": "",
       "GMNotes": "",
       "ColorDiffuse": {
-        "r": 0.121566109,
+        "r": 0.121565722,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -8933,9 +8933,9 @@
       "Description": "",
       "GMNotes": "",
       "ColorDiffuse": {
-        "r": 0.155050784,
-        "g": 0.155050784,
-        "b": 0.155050784
+        "r": 0.155050427,
+        "g": 0.155050427,
+        "b": 0.155050427
       },
       "Tags": [
         "Table"
@@ -9048,11 +9048,11 @@
       "GUID": "12e7c4",
       "Name": "Die_6",
       "Transform": {
-        "posX": -0.884169459,
-        "posY": 0.456429332,
-        "posZ": -0.197397158,
-        "rotX": 359.720154,
-        "rotY": 62.1983871,
+        "posX": -0.884201348,
+        "posY": 0.456427,
+        "posZ": -0.197606727,
+        "rotX": 359.720276,
+        "rotY": 62.207,
         "rotZ": 359.4726,
         "scaleX": 1.0,
         "scaleY": 1.0,
@@ -9139,10 +9139,10 @@
       "GUID": "3ca8b3",
       "Name": "Custom_Assetbundle",
       "Transform": {
-        "posX": -0.301293015,
+        "posX": -0.301293522,
         "posY": 2.30612159,
         "posZ": 40.292305,
-        "rotX": 4.71382E-06,
+        "rotX": 2.60064462E-06,
         "rotY": 180.0,
         "rotZ": 180.0,
         "scaleX": 2.0,
@@ -9205,11 +9205,11 @@
       "Name": "Custom_Tile",
       "Transform": {
         "posX": 43.91515,
-        "posY": 0.100000352,
+        "posY": 0.100000359,
         "posZ": 60.5774231,
-        "rotX": -2.3403663E-08,
+        "rotX": 2.90592936E-08,
         "rotY": 180.0,
-        "rotZ": 1.2774203E-08,
+        "rotZ": -7.821605E-09,
         "scaleX": 4.5,
         "scaleY": 1.0,
         "scaleZ": 4.5
@@ -13536,7 +13536,7 @@
       "Description": "",
       "GMNotes": "",
       "ColorDiffuse": {
-        "r": 0.09411267,
+        "r": 0.0941123143,
         "g": 1.0,
         "b": 1.0,
         "a": 0.0
@@ -14041,12 +14041,12 @@
       "GUID": "2d01dd",
       "Name": "Card",
       "Transform": {
-        "posX": 0.156098366,
-        "posY": 0.08479238,
-        "posZ": -5.18572044,
-        "rotX": 0.590653658,
+        "posX": 0.156097353,
+        "posY": 0.0847923756,
+        "posZ": -5.18572,
+        "rotX": 0.590654731,
         "rotY": 179.9446,
-        "rotZ": 0.83181715,
+        "rotZ": 0.8318153,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -14056,7 +14056,7 @@
       "GMNotes": "Ken.4.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567108,
+        "r": 0.121566735,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -14109,9 +14109,9 @@
       "Description": "",
       "GMNotes": "",
       "ColorDiffuse": {
-        "r": 0.155050755,
-        "g": 0.155050755,
-        "b": 0.155050755
+        "r": 0.1550504,
+        "g": 0.1550504,
+        "b": 0.1550504
       },
       "Tags": [
         "Table"
@@ -14265,11 +14265,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 17.5086212,
-        "posY": 0.0308941286,
+        "posY": 0.03089413,
         "posZ": 26.99987,
-        "rotX": 0.00483579049,
+        "rotX": 0.00483572064,
         "rotY": 180.0,
-        "rotZ": -3.71962742E-05,
+        "rotZ": -3.716716E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -14279,7 +14279,7 @@
       "GMNotes": "Street Fighter.1.07",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -14319,11 +14319,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 17.511198,
-        "posY": 0.0205565356,
+        "posY": 0.0205565337,
         "posZ": 22.9999142,
-        "rotX": 0.00483536953,
+        "rotX": 0.00483563077,
         "rotY": 180.000031,
-        "rotZ": -3.70028138E-05,
+        "rotZ": -3.69081245E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -14333,7 +14333,7 @@
       "GMNotes": "Street Fighter.1.07",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -14373,11 +14373,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 20.3592834,
-        "posY": 0.0208961181,
+        "posY": 0.02089611,
         "posZ": 27.0017052,
-        "rotX": 0.00483541843,
+        "rotX": 0.00483543472,
         "rotY": 179.999969,
-        "rotZ": -3.7021895E-05,
+        "rotZ": -3.71920323E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -14387,7 +14387,7 @@
       "GMNotes": "Street Fighter.1.06",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -14427,11 +14427,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 20.3618,
-        "posY": 0.0205585342,
+        "posY": 0.0205585323,
         "posZ": 23.00171,
-        "rotX": 0.004835541,
+        "rotX": 0.0048354445,
         "rotY": 180.0,
-        "rotZ": -3.71072565E-05,
+        "rotZ": -3.68127548E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -14441,7 +14441,7 @@
       "GMNotes": "Street Fighter.1.06",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -14481,11 +14481,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 23.2098846,
-        "posY": 0.0208980888,
+        "posY": 0.0208980851,
         "posZ": 27.0034943,
-        "rotX": 0.004835468,
-        "rotY": 180.0,
-        "rotZ": -3.72199975E-05,
+        "rotX": 0.00483557768,
+        "rotY": 179.999969,
+        "rotZ": -3.69886E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -14495,7 +14495,7 @@
       "GMNotes": "Street Fighter.1.05",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -14535,11 +14535,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 23.2124,
-        "posY": 0.0205605272,
+        "posY": 0.02056052,
         "posZ": 23.0034828,
-        "rotX": 0.004835577,
+        "rotX": 0.004835398,
         "rotY": 180.0,
-        "rotZ": -3.69302361E-05,
+        "rotZ": -3.74265837E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -14549,7 +14549,7 @@
       "GMNotes": "Street Fighter.1.05",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -14589,11 +14589,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 26.06739,
-        "posY": 0.0209001265,
+        "posY": 0.0209001377,
         "posZ": 27.0053158,
-        "rotX": 0.004835703,
-        "rotY": 180.0,
-        "rotZ": -3.696767E-05,
+        "rotX": 0.00483520562,
+        "rotY": 179.999969,
+        "rotZ": -3.69272639E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -14603,7 +14603,7 @@
       "GMNotes": "Street Fighter.1.04",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -14643,11 +14643,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 26.0699043,
-        "posY": 0.02056256,
+        "posY": 0.0205625556,
         "posZ": 23.0053215,
-        "rotX": 0.00483552,
-        "rotY": 180.0,
-        "rotZ": -3.7250833E-05,
+        "rotX": 0.00483548036,
+        "rotY": 179.999969,
+        "rotZ": -3.6774527E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -14657,7 +14657,7 @@
       "GMNotes": "Street Fighter.1.04",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -14696,11 +14696,11 @@
       "GUID": "383bd7",
       "Name": "Card",
       "Transform": {
-        "posX": 28.91083,
-        "posY": 0.0447890572,
+        "posX": 28.9108276,
+        "posY": 0.0447890125,
         "posZ": 23.0068512,
-        "rotX": 0.00444643339,
-        "rotY": 179.993179,
+        "rotX": 0.004446512,
+        "rotY": 179.993378,
         "rotZ": 359.0103,
         "scaleX": 1.25,
         "scaleY": 1.0,
@@ -14711,7 +14711,7 @@
       "GMNotes": "Street Fighter.1.03",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -14750,11 +14750,11 @@
       "GUID": "e2ae40",
       "Name": "Card",
       "Transform": {
-        "posX": 28.94482,
-        "posY": 0.0452683233,
+        "posX": 28.9448166,
+        "posY": 0.0452682562,
         "posZ": 27.0071011,
-        "rotX": 0.00444285525,
-        "rotY": 179.9932,
+        "rotX": 0.004443214,
+        "rotY": 179.993423,
         "rotZ": 359.004517,
         "scaleX": 1.25,
         "scaleY": 1.0,
@@ -14765,7 +14765,7 @@
       "GMNotes": "Street Fighter.1.03",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -14807,9 +14807,9 @@
         "posX": 31.7882614,
         "posY": 0.06360505,
         "posZ": 27.0166378,
-        "rotX": 3.33208874E-07,
+        "rotX": 2.62733238E-07,
         "rotY": 180.0,
-        "rotZ": 6.019271E-08,
+        "rotZ": 6.451318E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -14819,7 +14819,7 @@
       "GMNotes": "Street Fighter.1.02",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -14861,9 +14861,9 @@
         "posX": 31.79815,
         "posY": 0.06360503,
         "posZ": 23.0104961,
-        "rotX": 3.27515636E-07,
+        "rotX": 2.884744E-07,
         "rotY": 180.0,
-        "rotZ": 8.87728E-08,
+        "rotZ": 3.13050634E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -14873,7 +14873,7 @@
       "GMNotes": "Street Fighter.1.02",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -14915,9 +14915,9 @@
         "posX": 34.6194572,
         "posY": 0.06360503,
         "posZ": 23.00792,
-        "rotX": 3.27515636E-07,
+        "rotX": 2.943241E-07,
         "rotY": 180.0,
-        "rotZ": 8.87728E-08,
+        "rotZ": -1.07034367E-07,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -14927,7 +14927,7 @@
       "GMNotes": "Street Fighter.1.01",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -14969,9 +14969,9 @@
         "posX": 34.6187325,
         "posY": 0.06360505,
         "posZ": 27.0108433,
-        "rotX": 3.24685061E-07,
+        "rotX": 3.606809E-07,
         "rotY": 180.0,
-        "rotZ": -6.055865E-09,
+        "rotZ": 6.446556E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -14981,7 +14981,7 @@
       "GMNotes": "Street Fighter.1.01",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -15023,9 +15023,9 @@
         "posX": 37.46321,
         "posY": 0.06360505,
         "posZ": 27.0178547,
-        "rotX": 3.30657E-07,
+        "rotX": 2.75069056E-07,
         "rotY": 180.0,
-        "rotZ": -1.70351075E-08,
+        "rotZ": -4.13587342E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -15035,7 +15035,7 @@
       "GMNotes": "Street Fighter.1.00",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -15077,9 +15077,9 @@
         "posX": 37.4648,
         "posY": 0.06360503,
         "posZ": 23.0114,
-        "rotX": 3.339402E-07,
+        "rotX": 2.86920653E-07,
         "rotY": 180.011108,
-        "rotZ": 2.08572661E-08,
+        "rotZ": -1.819498E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -15089,7 +15089,7 @@
       "GMNotes": "Street Fighter.1.00",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -15169,11 +15169,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 66.79952,
-        "posY": 0.06360491,
+        "posY": 0.0636049062,
         "posZ": -42.4686928,
-        "rotX": 1.34804008E-08,
+        "rotX": -1.86717983E-08,
         "rotY": 180.025223,
-        "rotZ": 1.51872435E-08,
+        "rotZ": 1.969399E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -15183,7 +15183,7 @@
       "GMNotes": "Chun-Li.2.00",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -15223,11 +15223,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 66.7973862,
-        "posY": 0.0636049062,
+        "posY": 0.06360491,
         "posZ": -38.4693871,
-        "rotX": 4.019776E-08,
+        "rotX": -2.631307E-08,
         "rotY": 179.99762,
-        "rotZ": -4.258019E-10,
+        "rotZ": 2.21157421E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -15237,7 +15237,7 @@
       "GMNotes": "Chun-Li.2.00",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -15279,9 +15279,9 @@
         "posX": 61.0972137,
         "posY": 0.0636049062,
         "posZ": -38.4732742,
-        "rotX": -2.5413943E-08,
+        "rotX": 4.200118E-08,
         "rotY": 179.99881,
-        "rotZ": -5.61145477E-08,
+        "rotZ": -5.34714424E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -15291,7 +15291,7 @@
       "GMNotes": "Chun-Li.2.01",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -15333,9 +15333,9 @@
         "posX": 61.1001968,
         "posY": 0.0636049062,
         "posZ": -42.4726028,
-        "rotX": -4.55676634E-08,
+        "rotX": -2.14525482E-08,
         "rotY": 179.989563,
-        "rotZ": 1.88674836E-08,
+        "rotZ": -1.67842931E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -15345,7 +15345,7 @@
       "GMNotes": "Chun-Li.2.01",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -15387,9 +15387,9 @@
         "posX": 63.9754562,
         "posY": 0.0636049062,
         "posZ": -42.471386,
-        "rotX": 3.32575247E-08,
+        "rotX": 3.91552426E-08,
         "rotY": 179.991821,
-        "rotZ": -5.11024245E-09,
+        "rotZ": 2.21713972E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -15399,7 +15399,7 @@
       "GMNotes": "Chun-Li.2.02",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -15441,9 +15441,9 @@
         "posX": 63.9719162,
         "posY": 0.0636049062,
         "posZ": -38.4723244,
-        "rotX": -2.92379774E-08,
+        "rotX": -2.71923142E-08,
         "rotY": 179.998337,
-        "rotZ": 5.032699E-08,
+        "rotZ": -3.87632539E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -15453,7 +15453,7 @@
       "GMNotes": "Chun-Li.2.02",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -15495,9 +15495,9 @@
         "posX": 58.25357,
         "posY": 0.0636049062,
         "posZ": -38.4751549,
-        "rotX": 2.22539462E-08,
+        "rotX": -4.89953464E-08,
         "rotY": 179.999084,
-        "rotZ": -6.40851354E-08,
+        "rotZ": 9.149649E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -15507,7 +15507,7 @@
       "GMNotes": "Chun-Li.2.03",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -15549,9 +15549,9 @@
         "posX": 58.255928,
         "posY": 0.0636049062,
         "posZ": -42.47511,
-        "rotX": 6.459857E-09,
+        "rotX": -4.07638E-08,
         "rotY": 179.99884,
-        "rotZ": -2.56506674E-08,
+        "rotZ": 2.36745983E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -15561,7 +15561,7 @@
       "GMNotes": "Chun-Li.2.03",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -15603,9 +15603,9 @@
         "posX": 52.5480576,
         "posY": 0.0636049062,
         "posZ": -42.4789467,
-        "rotX": 2.42469458E-08,
+        "rotX": 1.40538106E-08,
         "rotY": 179.9992,
-        "rotZ": 7.729571E-09,
+        "rotZ": 6.693593E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -15615,7 +15615,7 @@
       "GMNotes": "Chun-Li.2.04",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -15655,11 +15655,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 52.5453339,
-        "posY": 0.0636049062,
+        "posY": 0.0636049,
         "posZ": -38.4788628,
-        "rotX": 4.077685E-08,
+        "rotX": -1.912757E-08,
         "rotY": 179.998276,
-        "rotZ": 3.700924E-08,
+        "rotZ": -6.995227E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -15669,7 +15669,7 @@
       "GMNotes": "Chun-Li.2.04",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -15709,11 +15709,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 55.3986931,
-        "posY": 0.0636049062,
+        "posY": 0.06360491,
         "posZ": -42.476963,
-        "rotX": 1.995446E-08,
+        "rotX": 2.17192788E-08,
         "rotY": 179.998856,
-        "rotZ": 8.474564E-08,
+        "rotZ": 1.41628673E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -15723,7 +15723,7 @@
       "GMNotes": "Chun-Li.2.05",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -15765,9 +15765,9 @@
         "posX": 55.3960876,
         "posY": 0.0636049062,
         "posZ": -38.477005,
-        "rotX": 5.624365E-09,
+        "rotX": 1.8557456E-08,
         "rotY": 179.999023,
-        "rotZ": 4.01554381E-08,
+        "rotZ": 6.73642546E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -15777,7 +15777,7 @@
       "GMNotes": "Chun-Li.2.05",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -15817,11 +15817,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 49.6927872,
-        "posY": 0.0636049062,
+        "posY": 0.0636049,
         "posZ": -38.4793358,
-        "rotX": 4.34976144E-08,
+        "rotX": -1.4898105E-08,
         "rotY": 179.999817,
-        "rotZ": 2.17675513E-08,
+        "rotZ": 2.46960585E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -15831,7 +15831,7 @@
       "GMNotes": "Chun-Li.2.06",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -15873,9 +15873,9 @@
         "posX": 49.69736,
         "posY": 0.06360491,
         "posZ": -42.4793968,
-        "rotX": 2.98554141E-08,
+        "rotX": -3.823414E-08,
         "rotY": 180.001816,
-        "rotZ": -1.06563851E-08,
+        "rotZ": -3.33020651E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -15885,7 +15885,7 @@
       "GMNotes": "Chun-Li.2.06",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -15927,9 +15927,9 @@
         "posX": -37.6410141,
         "posY": 0.06360503,
         "posZ": 23.0974751,
-        "rotX": 3.27790076E-07,
+        "rotX": 3.18983382E-07,
         "rotY": 180.0,
-        "rotZ": -2.50724312E-08,
+        "rotZ": -1.855154E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -15939,7 +15939,7 @@
       "GMNotes": "Street Fighter.1.07",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -15979,11 +15979,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -61.3214722,
-        "posY": 0.0636049062,
+        "posY": 0.06360491,
         "posZ": -37.7726,
-        "rotX": -2.32279334E-08,
+        "rotX": -2.8333893E-09,
         "rotY": 179.996613,
-        "rotZ": 5.082646E-08,
+        "rotZ": 3.00326E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -15993,7 +15993,7 @@
       "GMNotes": "Zangief.2.03",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -16035,9 +16035,9 @@
         "posX": -37.6414757,
         "posY": 0.07360505,
         "posZ": 27.0974751,
-        "rotX": 3.01951E-07,
+        "rotX": 3.05461327E-07,
         "rotY": 180.0,
-        "rotZ": -1.663576E-08,
+        "rotZ": -2.53652424E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -16047,7 +16047,7 @@
       "GMNotes": "Street Fighter.1.07",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -16089,9 +16089,9 @@
         "posX": -58.5022964,
         "posY": 0.0636049062,
         "posZ": -37.77527,
-        "rotX": -8.602665E-09,
+        "rotX": 1.05309246E-08,
         "rotY": 179.998657,
-        "rotZ": 2.93918081E-08,
+        "rotZ": 2.08385043E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -16101,7 +16101,7 @@
       "GMNotes": "Zangief.2.02",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -16143,9 +16143,9 @@
         "posX": -49.9101067,
         "posY": 0.0636049062,
         "posZ": -37.775383,
-        "rotX": -2.045901E-08,
+        "rotX": 1.72486434E-08,
         "rotY": 180.0,
-        "rotZ": 5.631036E-09,
+        "rotZ": 4.18332142E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -16155,7 +16155,7 @@
       "GMNotes": "Zangief.2.00",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -16195,11 +16195,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -52.7625847,
-        "posY": 0.0636049062,
+        "posY": 0.06360491,
         "posZ": -37.775528,
-        "rotX": 3.841023E-08,
+        "rotX": -3.9465764E-08,
         "rotY": 179.999954,
-        "rotZ": 1.566722E-08,
+        "rotZ": 6.75002738E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -16209,7 +16209,7 @@
       "GMNotes": "Zangief.2.05",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -16249,11 +16249,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -64.16477,
-        "posY": 0.0636049062,
+        "posY": 0.0636049,
         "posZ": -41.7752151,
-        "rotX": 4.28250928E-08,
+        "rotX": 3.0219482E-08,
         "rotY": 180.0,
-        "rotZ": -2.37072548E-08,
+        "rotZ": 2.34858781E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -16263,7 +16263,7 @@
       "GMNotes": "Zangief.2.06",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -16305,9 +16305,9 @@
         "posX": -58.4684219,
         "posY": 0.0636049062,
         "posZ": -41.7753677,
-        "rotX": -1.43146748E-08,
+        "rotX": 2.06086748E-09,
         "rotY": 179.999054,
-        "rotZ": -3.75181557E-08,
+        "rotZ": -4.33397922E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -16317,7 +16317,7 @@
       "GMNotes": "Zangief.2.02",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -16357,11 +16357,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -55.61607,
-        "posY": 0.06360491,
+        "posY": 0.0636049062,
         "posZ": -37.7752342,
-        "rotX": 3.54366634E-08,
+        "rotX": 4.44711E-09,
         "rotY": 180.000015,
-        "rotZ": 1.49225841E-08,
+        "rotZ": -1.98944772E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -16371,7 +16371,7 @@
       "GMNotes": "Zangief.2.01",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -16411,11 +16411,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -67.0172348,
-        "posY": 0.0636049062,
+        "posY": 0.06360491,
         "posZ": -41.7755737,
-        "rotX": 1.85135143E-08,
+        "rotX": -3.97660855E-08,
         "rotY": 180.0,
-        "rotZ": 8.289303E-08,
+        "rotZ": 8.208529E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -16425,7 +16425,7 @@
       "GMNotes": "Zangief.2.04",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -16467,9 +16467,9 @@
         "posX": -64.16457,
         "posY": 0.0636049062,
         "posZ": -37.7752151,
-        "rotX": 1.68109189E-08,
+        "rotX": 2.30455033E-08,
         "rotY": 180.0,
-        "rotZ": 3.01889926E-08,
+        "rotZ": -5.629788E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -16479,7 +16479,7 @@
       "GMNotes": "Zangief.2.06",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -16521,9 +16521,9 @@
         "posX": -31.9316769,
         "posY": 0.0636050552,
         "posZ": 27.0999737,
-        "rotX": 2.70117084E-07,
+        "rotX": 3.10596931E-07,
         "rotY": 180.0,
-        "rotZ": -2.502731E-08,
+        "rotZ": 7.360601E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -16533,7 +16533,7 @@
       "GMNotes": "Street Fighter.1.05",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -16573,11 +16573,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -55.6146736,
-        "posY": 0.06360491,
+        "posY": 0.0636049062,
         "posZ": -41.7752151,
-        "rotX": -1.25830013E-08,
+        "rotX": -7.629647E-08,
         "rotY": 179.999863,
-        "rotZ": -1.39543337E-08,
+        "rotZ": 2.30775381E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -16587,7 +16587,7 @@
       "GMNotes": "Zangief.2.01",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -16626,12 +16626,12 @@
       "GUID": "d423bb",
       "Name": "Card",
       "Transform": {
-        "posX": -29.1240273,
-        "posY": 0.0470429957,
-        "posZ": 23.0968132,
-        "rotX": 0.0044407784,
-        "rotY": 179.9987,
-        "rotZ": 1.0840354,
+        "posX": -29.1240234,
+        "posY": 0.04704271,
+        "posZ": 23.09681,
+        "rotX": 0.00444056466,
+        "rotY": 179.998779,
+        "rotZ": 1.08404946,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -16641,7 +16641,7 @@
       "GMNotes": "Street Fighter.1.04",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -16681,11 +16681,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -23.3849583,
-        "posY": 0.020538345,
+        "posY": 0.0205383245,
         "posZ": 23.0979118,
-        "rotX": 0.004835466,
+        "rotX": 0.004835273,
         "rotY": 180.0,
-        "rotZ": -3.71215247E-05,
+        "rotZ": -3.702722E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -16695,7 +16695,7 @@
       "GMNotes": "Street Fighter.1.02",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -16737,9 +16737,9 @@
         "posX": -34.785408,
         "posY": 0.0636050552,
         "posZ": 27.0978317,
-        "rotX": 3.375327E-07,
+        "rotX": 2.89016583E-07,
         "rotY": 180.0,
-        "rotZ": -5.15302254E-08,
+        "rotZ": -2.16185159E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -16749,7 +16749,7 @@
       "GMNotes": "Street Fighter.1.06",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -16791,9 +16791,9 @@
         "posX": -49.91003,
         "posY": 0.0636049062,
         "posZ": -41.775383,
-        "rotX": -7.60310144E-08,
+        "rotX": 7.36822647E-09,
         "rotY": 179.999954,
-        "rotZ": -3.78440035E-08,
+        "rotZ": -5.341996E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -16803,7 +16803,7 @@
       "GMNotes": "Zangief.2.00",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -16842,12 +16842,12 @@
       "GUID": "8d6d0a",
       "Name": "Card",
       "Transform": {
-        "posX": -29.1231937,
-        "posY": 0.0471630134,
-        "posZ": 27.0968437,
-        "rotX": 0.004437757,
-        "rotY": 179.999878,
-        "rotZ": 1.07516789,
+        "posX": -29.12319,
+        "posY": 0.0471629128,
+        "posZ": 27.0968361,
+        "rotX": 0.00443937536,
+        "rotY": 179.999985,
+        "rotZ": 1.07516527,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -16857,7 +16857,7 @@
       "GMNotes": "Street Fighter.1.04",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -16897,11 +16897,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -23.385067,
-        "posY": 0.0208758842,
+        "posY": 0.0208759084,
         "posZ": 27.0979118,
-        "rotX": 0.0048354743,
-        "rotY": 180.0,
-        "rotZ": -3.71335627E-05,
+        "rotX": 0.00483537326,
+        "rotY": 179.999985,
+        "rotZ": -3.7042515E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -16911,7 +16911,7 @@
       "GMNotes": "Street Fighter.1.02",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -16951,11 +16951,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -17.6802959,
-        "posY": 0.0208796021,
+        "posY": 0.02087958,
         "posZ": 27.09807,
-        "rotX": 0.004835465,
+        "rotX": 0.00483533554,
         "rotY": 180.0,
-        "rotZ": -3.70082744E-05,
+        "rotZ": -3.70453054E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -16965,7 +16965,7 @@
       "GMNotes": "Street Fighter.1.00",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -17005,11 +17005,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -20.5329781,
-        "posY": 0.0205401648,
+        "posY": 0.0205401313,
         "posZ": 23.0976563,
-        "rotX": 0.00483545428,
-        "rotY": 179.999985,
-        "rotZ": -3.71488422E-05,
+        "rotX": 0.00483526243,
+        "rotY": 179.999954,
+        "rotZ": -3.7087957E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -17019,7 +17019,7 @@
       "GMNotes": "Street Fighter.1.01",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -17061,9 +17061,9 @@
         "posX": -31.9387474,
         "posY": 0.06360503,
         "posZ": 23.0981884,
-        "rotX": 3.105942E-07,
+        "rotX": 3.078848E-07,
         "rotY": 180.0,
-        "rotZ": 1.22651072E-08,
+        "rotZ": 2.232674E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -17073,7 +17073,7 @@
       "GMNotes": "Street Fighter.1.05",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -17115,9 +17115,9 @@
         "posX": -34.78771,
         "posY": 0.06360503,
         "posZ": 23.09783,
-        "rotX": 3.105942E-07,
+        "rotX": 3.24640581E-07,
         "rotY": 180.0,
-        "rotZ": 1.22651072E-08,
+        "rotZ": 3.90660944E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -17127,7 +17127,7 @@
       "GMNotes": "Street Fighter.1.06",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -17169,9 +17169,9 @@
         "posX": -67.017746,
         "posY": 0.0636049062,
         "posZ": -37.7759171,
-        "rotX": -8.908526E-09,
+        "rotX": 4.01472739E-08,
         "rotY": 180.0,
-        "rotZ": -1.62822378E-08,
+        "rotZ": 4.308663E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -17181,7 +17181,7 @@
       "GMNotes": "Zangief.2.04",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -17221,11 +17221,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -26.2389221,
-        "posY": 0.0205364842,
+        "posY": 0.0205364861,
         "posZ": 23.0978088,
-        "rotX": 0.004835237,
+        "rotX": 0.004835185,
         "rotY": 179.999985,
-        "rotZ": -3.697378E-05,
+        "rotZ": -3.69685258E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -17235,7 +17235,7 @@
       "GMNotes": "Street Fighter.1.03",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -17275,11 +17275,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -20.533102,
-        "posY": 0.0208777245,
+        "posY": 0.0208777189,
         "posZ": 27.0976639,
-        "rotX": 0.00483544031,
+        "rotX": 0.004835539,
         "rotY": 180.0,
-        "rotZ": -3.723197E-05,
+        "rotZ": -3.71184142E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -17289,7 +17289,7 @@
       "GMNotes": "Street Fighter.1.01",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -17329,11 +17329,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -26.2390537,
-        "posY": 0.0208740644,
+        "posY": 0.0208740514,
         "posZ": 27.09782,
-        "rotX": 0.00483543565,
+        "rotX": 0.004835175,
         "rotY": 180.000015,
-        "rotZ": -3.70718044E-05,
+        "rotZ": -3.69422378E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -17343,7 +17343,7 @@
       "GMNotes": "Street Fighter.1.03",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -17383,11 +17383,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -17.6801834,
-        "posY": 0.0205420181,
+        "posY": 0.0205420069,
         "posZ": 23.0980854,
-        "rotX": 0.00483527966,
-        "rotY": 179.999954,
-        "rotZ": -3.71534952E-05,
+        "rotX": 0.004835378,
+        "rotY": 179.999969,
+        "rotZ": -3.70373746E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -17397,7 +17397,7 @@
       "GMNotes": "Street Fighter.1.00",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -17439,9 +17439,9 @@
         "posX": -61.3196373,
         "posY": 0.0636049062,
         "posZ": -41.7748375,
-        "rotX": -8.39853E-09,
+        "rotX": 2.34324684E-08,
         "rotY": 180.0,
-        "rotZ": 2.97673335E-08,
+        "rotZ": -2.47190535E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -17451,7 +17451,7 @@
       "GMNotes": "Zangief.2.03",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567138,
+        "r": 0.121566765,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -17543,11 +17543,11 @@
       "Name": "BlockSquare",
       "Transform": {
         "posX": 22.8083668,
-        "posY": 0.05570658,
+        "posY": 0.0557065681,
         "posZ": 8.206152,
-        "rotX": 0.004843106,
-        "rotY": 180.007156,
-        "rotZ": -3.67464E-05,
+        "rotX": 0.004842981,
+        "rotY": 180.006973,
+        "rotZ": -3.67951143E-05,
         "scaleX": 3.5,
         "scaleY": 0.1,
         "scaleZ": 1.0
@@ -17557,7 +17557,7 @@
       "GMNotes": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.250979334,
+        "g": 0.250978947,
         "b": 1.0
       },
       "LayoutGroupSortIndex": 0,
@@ -17582,12 +17582,12 @@
       "GUID": "3a526e",
       "Name": "BlockSquare",
       "Transform": {
-        "posX": -11.3554487,
-        "posY": 0.0555267669,
-        "posZ": 6.33797741,
-        "rotX": 0.00484207,
+        "posX": -11.3554382,
+        "posY": 0.05552677,
+        "posZ": 6.33797646,
+        "rotX": 0.004841371,
         "rotY": 179.991531,
-        "rotZ": -3.7894406E-05,
+        "rotZ": -3.78209734E-05,
         "scaleX": 3.5,
         "scaleY": 0.1,
         "scaleZ": 1.0
@@ -17625,9 +17625,9 @@
         "posX": -52.76157,
         "posY": 0.0636049062,
         "posZ": -41.775116,
-        "rotX": -5.554076E-08,
+        "rotX": -3.48160434E-08,
         "rotY": 179.999985,
-        "rotZ": -3.33162937E-08,
+        "rotZ": 8.31918854E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -17637,7 +17637,7 @@
       "GMNotes": "Zangief.2.05",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567078,
+        "r": 0.121566705,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -17679,9 +17679,9 @@
         "posX": 1.7752912,
         "posY": 0.220165983,
         "posZ": -67.08091,
-        "rotX": 2.61979718E-08,
+        "rotX": -1.2806187E-07,
         "rotY": 180.000214,
-        "rotZ": 8.403494E-09,
+        "rotZ": -1.07093236E-07,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -17691,7 +17691,7 @@
       "GMNotes": "",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -19517,11 +19517,11 @@
       "Name": "Deck",
       "Transform": {
         "posX": -1.49672341,
-        "posY": 0.220165983,
+        "posY": 0.220165968,
         "posZ": -71.17034,
-        "rotX": -2.9242878E-07,
+        "rotX": 3.40540645E-08,
         "rotY": 180.0,
-        "rotZ": -3.642896E-07,
+        "rotZ": 1.08124539E-07,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -19531,7 +19531,7 @@
       "GMNotes": "",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -21361,9 +21361,9 @@
         "posX": 1.79206634,
         "posY": 0.220165983,
         "posZ": -50.4982376,
-        "rotX": -1.19558891E-07,
+        "rotX": 1.610418E-07,
         "rotY": 180.0,
-        "rotZ": 1.48634157E-07,
+        "rotZ": 4.558584E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -21373,7 +21373,7 @@
       "GMNotes": "",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -23203,9 +23203,9 @@
         "posX": -1.73316789,
         "posY": 0.220165983,
         "posZ": -50.49338,
-        "rotX": 1.08243235E-07,
+        "rotX": 7.301035E-08,
         "rotY": 179.999985,
-        "rotZ": -1.27701014E-07,
+        "rotZ": -1.96219887E-07,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -23215,7 +23215,7 @@
       "GMNotes": "",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -25045,9 +25045,9 @@
         "posX": -1.68197465,
         "posY": 0.220165983,
         "posZ": -63.0209732,
-        "rotX": 1.60798628E-08,
+        "rotX": -1.83248432E-07,
         "rotY": 180.0,
-        "rotZ": 8.595117E-08,
+        "rotZ": 2.35486546E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -25057,7 +25057,7 @@
       "GMNotes": "",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -26887,9 +26887,9 @@
         "posX": -1.72621489,
         "posY": 0.220165983,
         "posZ": -58.9077568,
-        "rotX": 4.44780746E-08,
+        "rotX": -1.79282456E-08,
         "rotY": 180.0,
-        "rotZ": -3.296442E-07,
+        "rotZ": 2.26309368E-07,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -26899,7 +26899,7 @@
       "GMNotes": "",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -28729,9 +28729,9 @@
         "posX": 1.75651526,
         "posY": 0.220165983,
         "posZ": -63.0400963,
-        "rotX": 1.53983308E-07,
+        "rotX": -1.773194E-07,
         "rotY": 180.0,
-        "rotZ": -2.88411428E-07,
+        "rotZ": -1.92758861E-07,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -28741,7 +28741,7 @@
       "GMNotes": "",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -30571,9 +30571,9 @@
         "posX": -1.77227235,
         "posY": 0.220165983,
         "posZ": -54.80198,
-        "rotX": 2.36241764E-08,
+        "rotX": 1.41328613E-07,
         "rotY": 180.0,
-        "rotZ": -2.5491E-07,
+        "rotZ": 5.336124E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -30583,7 +30583,7 @@
       "GMNotes": "",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -32409,11 +32409,11 @@
       "Name": "Deck",
       "Transform": {
         "posX": -1.59815812,
-        "posY": 0.220166,
+        "posY": 0.220165983,
         "posZ": -67.11936,
-        "rotX": 2.06132341E-07,
+        "rotX": -7.82012748E-08,
         "rotY": 180.0,
-        "rotZ": 6.734589E-08,
+        "rotZ": 1.41045845E-07,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -32423,7 +32423,7 @@
       "GMNotes": "",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -34253,9 +34253,9 @@
         "posX": 1.80460525,
         "posY": 0.220165983,
         "posZ": -71.2074661,
-        "rotX": 1.69179458E-07,
+        "rotX": 1.42622469E-07,
         "rotY": 180.0,
-        "rotZ": 5.09546965E-08,
+        "rotZ": 8.52934363E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -34265,7 +34265,7 @@
       "GMNotes": "",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -36095,9 +36095,9 @@
         "posX": 1.79221129,
         "posY": 0.220165983,
         "posZ": -58.7963371,
-        "rotX": 1.31655582E-07,
+        "rotX": -1.36454958E-07,
         "rotY": 180.0,
-        "rotZ": 1.84987783E-07,
+        "rotZ": -2.20491756E-07,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -36107,7 +36107,7 @@
       "GMNotes": "",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -37937,9 +37937,9 @@
         "posX": 4.796936,
         "posY": 0.0636049062,
         "posZ": -67.08962,
-        "rotX": 4.58273881E-08,
+        "rotX": 2.30949482E-08,
         "rotY": 180.0,
-        "rotZ": -6.592872E-08,
+        "rotZ": 3.50084264E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -37949,7 +37949,7 @@
       "GMNotes": "Vega.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -38011,9 +38011,9 @@
         "posX": 7.64933062,
         "posY": 0.0636049062,
         "posZ": -67.08973,
-        "rotX": 3.91066735E-08,
+        "rotX": -1.818135E-08,
         "rotY": 180.0,
-        "rotZ": -6.196937E-08,
+        "rotZ": -3.76700662E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -38023,7 +38023,7 @@
       "GMNotes": "Vega.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -38085,9 +38085,9 @@
         "posX": 10.49814,
         "posY": 0.0636049062,
         "posZ": -67.08962,
-        "rotX": 2.33037856E-08,
+        "rotX": 4.22630535E-08,
         "rotY": 180.0,
-        "rotZ": -5.01947568E-08,
+        "rotZ": 4.020872E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -38097,7 +38097,7 @@
       "GMNotes": "Vega.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -38159,9 +38159,9 @@
         "posX": 13.3487415,
         "posY": 0.0636049062,
         "posZ": -67.08964,
-        "rotX": 2.46374761E-08,
+        "rotX": 5.29033741E-08,
         "rotY": 180.0,
-        "rotZ": 4.85809437E-09,
+        "rotZ": -6.640391E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -38171,7 +38171,7 @@
       "GMNotes": "Vega.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -38233,9 +38233,9 @@
         "posX": 16.2073936,
         "posY": 0.0636049062,
         "posZ": -67.08961,
-        "rotX": -3.59037635E-08,
+        "rotX": 1.36467184E-08,
         "rotY": 180.0,
-        "rotZ": -2.73252461E-08,
+        "rotZ": 3.57098462E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -38245,7 +38245,7 @@
       "GMNotes": "Vega.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -38307,9 +38307,9 @@
         "posX": 19.0569267,
         "posY": 0.0636049062,
         "posZ": -67.0897141,
-        "rotX": 1.453777E-09,
+        "rotX": 3.75582943E-08,
         "rotY": 180.0,
-        "rotZ": 1.15700116E-08,
+        "rotZ": 1.38613743E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -38319,7 +38319,7 @@
       "GMNotes": "Vega.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -38381,9 +38381,9 @@
         "posX": 21.9015884,
         "posY": 0.0636049062,
         "posZ": -67.08964,
-        "rotX": 9.148023E-10,
+        "rotX": 2.047125E-10,
         "rotY": 180.0,
-        "rotZ": 3.56853427E-08,
+        "rotZ": -5.614445E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -38393,7 +38393,7 @@
       "GMNotes": "Vega.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -38455,9 +38455,9 @@
         "posX": 4.79493332,
         "posY": 0.0636049062,
         "posZ": -71.1755753,
-        "rotX": 3.67085953E-08,
+        "rotX": -5.715928E-09,
         "rotY": 180.000015,
-        "rotZ": 2.8499997E-08,
+        "rotZ": 2.20513066E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -38467,7 +38467,7 @@
       "GMNotes": "Zangief.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -38529,9 +38529,9 @@
         "posX": 7.64750528,
         "posY": 0.0636049062,
         "posZ": -71.1757,
-        "rotX": 1.474848E-09,
+        "rotX": 1.31672131E-08,
         "rotY": 179.9954,
-        "rotZ": 3.94701871E-08,
+        "rotZ": 5.31917843E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -38541,7 +38541,7 @@
       "GMNotes": "Zangief.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -38603,9 +38603,9 @@
         "posX": 10.49614,
         "posY": 0.0636049062,
         "posZ": -71.1755753,
-        "rotX": -3.863201E-08,
+        "rotX": 1.16690746E-08,
         "rotY": 180.0,
-        "rotZ": 2.50618477E-08,
+        "rotZ": 2.61708824E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -38615,7 +38615,7 @@
       "GMNotes": "Zangief.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -38677,9 +38677,9 @@
         "posX": 13.3467407,
         "posY": 0.0636049062,
         "posZ": -71.1755753,
-        "rotX": -3.37187234E-09,
+        "rotX": 3.33365779E-09,
         "rotY": 180.0,
-        "rotZ": -5.70108831E-08,
+        "rotZ": 2.0288411E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -38689,7 +38689,7 @@
       "GMNotes": "Zangief.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -38751,9 +38751,9 @@
         "posX": 16.205389,
         "posY": 0.0636049062,
         "posZ": -71.17556,
-        "rotX": -1.74114749E-08,
+        "rotX": 9.207869E-09,
         "rotY": 179.999832,
-        "rotZ": 6.46838956E-08,
+        "rotZ": 3.856002E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -38763,7 +38763,7 @@
       "GMNotes": "Zangief.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -38825,9 +38825,9 @@
         "posX": 19.0549259,
         "posY": 0.0636049062,
         "posZ": -71.17565,
-        "rotX": 2.50555532E-09,
+        "rotX": 2.58058321E-08,
         "rotY": 180.000656,
-        "rotZ": -4.52711681E-08,
+        "rotZ": 4.08432825E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -38837,7 +38837,7 @@
       "GMNotes": "Zangief.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -38899,9 +38899,9 @@
         "posX": 21.8996277,
         "posY": 0.0636049062,
         "posZ": -71.1755753,
-        "rotX": -1.38969147E-09,
+        "rotX": -7.52754E-09,
         "rotY": 180.000015,
-        "rotZ": -2.57296389E-08,
+        "rotZ": -6.70356126E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -38911,7 +38911,7 @@
       "GMNotes": "Zangief.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -38973,9 +38973,9 @@
         "posX": 1.76116729,
         "posY": 0.220165983,
         "posZ": -54.62144,
-        "rotX": -1.23348144E-07,
+        "rotX": 5.971198E-08,
         "rotY": 180.0,
-        "rotZ": 1.17128941E-07,
+        "rotZ": -3.01058549E-07,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -38985,7 +38985,7 @@
       "GMNotes": "",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -40826,9 +40826,9 @@
       "Description": "",
       "GMNotes": "",
       "ColorDiffuse": {
-        "r": 0.249127567,
-        "g": 0.249127567,
-        "b": 0.249127567
+        "r": 0.249127179,
+        "g": 0.249127179,
+        "b": 0.249127179
       },
       "Tags": [
         "Table"
@@ -40856,11 +40856,11 @@
       "Name": "Custom_PDF",
       "Transform": {
         "posX": 58.4977264,
-        "posY": 0.0500004366,
+        "posY": 0.0500004441,
         "posZ": 17.8509731,
-        "rotX": 3.2171252E-07,
+        "rotX": 3.239525E-07,
         "rotY": 179.995529,
-        "rotZ": -1.53095776E-08,
+        "rotZ": 6.658658E-09,
         "scaleX": 5.0,
         "scaleY": 1.0,
         "scaleZ": 5.0
@@ -40904,9 +40904,9 @@
         "posX": -22.0304413,
         "posY": 0.0636049062,
         "posZ": -50.402092,
-        "rotX": -4.34243148E-08,
+        "rotX": -2.42716727E-08,
         "rotY": 180.011368,
-        "rotZ": 3.35443637E-08,
+        "rotZ": 4.694284E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -40916,7 +40916,7 @@
       "GMNotes": "Akuma.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -40978,9 +40978,9 @@
         "posX": -19.1776428,
         "posY": 0.0636049062,
         "posZ": -50.4028053,
-        "rotX": 2.10943334E-08,
+        "rotX": -9.019678E-09,
         "rotY": 179.99675,
-        "rotZ": 1.63962781E-08,
+        "rotZ": -4.179906E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -40990,7 +40990,7 @@
       "GMNotes": "Akuma.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -41052,9 +41052,9 @@
         "posX": -16.32634,
         "posY": 0.0636049062,
         "posZ": -50.4026146,
-        "rotX": 2.51433918E-09,
+        "rotX": -6.837912E-09,
         "rotY": 179.995239,
-        "rotZ": -3.5981067E-08,
+        "rotZ": 3.228168E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -41064,7 +41064,7 @@
       "GMNotes": "Akuma.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -41126,9 +41126,9 @@
         "posX": -13.4783821,
         "posY": 0.0636049062,
         "posZ": -50.4023323,
-        "rotX": -3.327496E-08,
+        "rotX": -3.033032E-08,
         "rotY": 180.005219,
-        "rotZ": 5.10005229E-08,
+        "rotZ": 5.90912776E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -41138,7 +41138,7 @@
       "GMNotes": "Akuma.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -41200,9 +41200,9 @@
         "posX": -10.61919,
         "posY": 0.0636049062,
         "posZ": -50.403,
-        "rotX": 4.22810542E-09,
+        "rotX": -2.50365488E-08,
         "rotY": 179.99057,
-        "rotZ": -1.58517077E-09,
+        "rotZ": -2.03086525E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -41212,7 +41212,7 @@
       "GMNotes": "Akuma.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -41274,9 +41274,9 @@
         "posX": -7.76979971,
         "posY": 0.0636049062,
         "posZ": -50.40271,
-        "rotX": -6.5838206E-09,
+        "rotX": -1.49949086E-09,
         "rotY": 179.994934,
-        "rotZ": -1.66076113E-08,
+        "rotZ": 6.62426842E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -41286,7 +41286,7 @@
       "GMNotes": "Akuma.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -41348,9 +41348,9 @@
         "posX": -4.92606163,
         "posY": 0.0636049062,
         "posZ": -50.40225,
-        "rotX": 1.62092153E-08,
+        "rotX": -9.220291E-09,
         "rotY": 180.003723,
-        "rotZ": 3.559971E-08,
+        "rotZ": 5.574527E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -41360,7 +41360,7 @@
       "GMNotes": "Akuma.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -41422,9 +41422,9 @@
         "posX": -22.0070953,
         "posY": 0.0636049062,
         "posZ": -54.71488,
-        "rotX": -1.94081942E-08,
+        "rotX": 2.30334667E-08,
         "rotY": 179.996582,
-        "rotZ": -3.15321849E-08,
+        "rotZ": 1.60512474E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -41434,7 +41434,7 @@
       "GMNotes": "C. Viper.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -41496,9 +41496,9 @@
         "posX": -19.15261,
         "posY": 0.0636049062,
         "posZ": -54.7143135,
-        "rotX": 5.30079765E-11,
+        "rotX": 3.351373E-08,
         "rotY": 179.985657,
-        "rotZ": 8.232878E-08,
+        "rotZ": 1.24894965E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -41508,7 +41508,7 @@
       "GMNotes": "C. Viper.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -41570,9 +41570,9 @@
         "posX": -16.3059654,
         "posY": 0.0636049062,
         "posZ": -54.7143173,
-        "rotX": -1.43657717E-08,
+        "rotX": 2.80083725E-08,
         "rotY": 179.9999,
-        "rotZ": -1.90326759E-08,
+        "rotZ": 2.7667058E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -41582,7 +41582,7 @@
       "GMNotes": "C. Viper.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -41644,9 +41644,9 @@
         "posX": -13.4547405,
         "posY": 0.0636049062,
         "posZ": -54.71532,
-        "rotX": 4.414942E-09,
+        "rotX": 6.27967864E-08,
         "rotY": 179.98378,
-        "rotZ": 4.014594E-08,
+        "rotZ": -4.74813078E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -41656,7 +41656,7 @@
       "GMNotes": "C. Viper.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -41718,9 +41718,9 @@
         "posX": -10.6007729,
         "posY": 0.0636049062,
         "posZ": -54.7142677,
-        "rotX": 1.35937643E-08,
+        "rotX": -2.60567248E-08,
         "rotY": 179.992874,
-        "rotZ": 6.951868E-09,
+        "rotZ": 1.04197451E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -41730,7 +41730,7 @@
       "GMNotes": "C. Viper.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -41792,9 +41792,9 @@
         "posX": -7.75138474,
         "posY": 0.0636049062,
         "posZ": -54.71453,
-        "rotX": -5.684454E-09,
+        "rotX": -4.67623842E-08,
         "rotY": 180.011551,
-        "rotZ": 1.46889052E-08,
+        "rotZ": 3.10426032E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -41804,7 +41804,7 @@
       "GMNotes": "C. Viper.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -41866,9 +41866,9 @@
         "posX": -4.90280533,
         "posY": 0.0636049062,
         "posZ": -54.71432,
-        "rotX": -1.01612629E-08,
+        "rotX": 1.41603991E-08,
         "rotY": 180.0455,
-        "rotZ": 1.76752846E-09,
+        "rotZ": 6.56107E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -41878,7 +41878,7 @@
       "GMNotes": "C. Viper.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -41940,9 +41940,9 @@
         "posX": -21.9464,
         "posY": 0.0636049062,
         "posZ": -58.89018,
-        "rotX": -1.7149798E-08,
+        "rotX": -7.755536E-10,
         "rotY": 180.0,
-        "rotZ": 3.18329576E-08,
+        "rotZ": -3.672127E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -41952,7 +41952,7 @@
       "GMNotes": "Cammy.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -42014,9 +42014,9 @@
         "posX": -19.0940056,
         "posY": 0.0636049062,
         "posZ": -58.89028,
-        "rotX": 2.18898748E-08,
+        "rotX": -8.553845E-09,
         "rotY": 179.997009,
-        "rotZ": 6.051672E-08,
+        "rotZ": -4.26163744E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -42026,7 +42026,7 @@
       "GMNotes": "Cammy.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -42088,9 +42088,9 @@
         "posX": -16.2451973,
         "posY": 0.0636049062,
         "posZ": -58.89018,
-        "rotX": -1.95232044E-08,
+        "rotX": -2.765444E-08,
         "rotY": 180.0,
-        "rotZ": 1.05636822E-07,
+        "rotZ": -5.15126075E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -42100,7 +42100,7 @@
       "GMNotes": "Cammy.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -42162,9 +42162,9 @@
         "posX": -13.3945942,
         "posY": 0.0636049062,
         "posZ": -58.89018,
-        "rotX": -1.61566607E-10,
+        "rotX": -3.04036973E-08,
         "rotY": 180.0,
-        "rotZ": 5.4209405E-08,
+        "rotZ": -2.17219185E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -42174,7 +42174,7 @@
       "GMNotes": "Cammy.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -42236,9 +42236,9 @@
         "posX": -10.5359325,
         "posY": 0.0636049062,
         "posZ": -58.89016,
-        "rotX": -4.07121377E-08,
+        "rotX": -3.55788927E-08,
         "rotY": 179.999756,
-        "rotZ": -6.09930861E-09,
+        "rotZ": 4.968501E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -42248,7 +42248,7 @@
       "GMNotes": "Cammy.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -42310,9 +42310,9 @@
         "posX": -7.686529,
         "posY": 0.0636049062,
         "posZ": -58.89025,
-        "rotX": -2.68714384E-08,
+        "rotX": -1.74924182E-08,
         "rotY": 180.000687,
-        "rotZ": -6.48020437E-09,
+        "rotZ": -1.2159652E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -42322,7 +42322,7 @@
       "GMNotes": "Cammy.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -42384,9 +42384,9 @@
         "posX": -4.84194374,
         "posY": 0.0636049062,
         "posZ": -58.89018,
-        "rotX": 1.00401E-08,
+        "rotX": 6.22660146E-09,
         "rotY": 180.0,
-        "rotZ": -3.68653978E-08,
+        "rotZ": 1.52106931E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -42396,7 +42396,7 @@
       "GMNotes": "Cammy.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -42458,9 +42458,9 @@
         "posX": -21.9689217,
         "posY": 0.0636049062,
         "posZ": -63.01789,
-        "rotX": -1.38270755E-08,
+        "rotX": -2.448338E-08,
         "rotY": 180.0,
-        "rotZ": -2.07980424E-08,
+        "rotZ": -4.700815E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -42470,7 +42470,7 @@
       "GMNotes": "Chun-Li.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -42532,9 +42532,9 @@
         "posX": -19.1165237,
         "posY": 0.0636049062,
         "posZ": -63.01799,
-        "rotX": -1.33947884E-08,
+        "rotX": -2.468374E-08,
         "rotY": 179.997025,
-        "rotZ": 8.620847E-09,
+        "rotZ": -6.705445E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -42544,7 +42544,7 @@
       "GMNotes": "Chun-Li.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -42606,9 +42606,9 @@
         "posX": -16.2677174,
         "posY": 0.0636049062,
         "posZ": -63.01789,
-        "rotX": -6.630303E-08,
+        "rotX": 1.856305E-08,
         "rotY": 180.0,
-        "rotZ": -1.24878374E-08,
+        "rotZ": -3.59855576E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -42618,7 +42618,7 @@
       "GMNotes": "Chun-Li.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -42680,9 +42680,9 @@
         "posX": -13.4171143,
         "posY": 0.0636049062,
         "posZ": -63.01789,
-        "rotX": 3.5895436E-08,
+        "rotX": -1.76686168E-08,
         "rotY": 180.0,
-        "rotZ": 3.76872844E-09,
+        "rotZ": 1.6351287E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -42692,7 +42692,7 @@
       "GMNotes": "Chun-Li.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -42754,9 +42754,9 @@
         "posX": -10.5584526,
         "posY": 0.0636049062,
         "posZ": -63.01787,
-        "rotX": 6.34922657E-08,
+        "rotX": -4.163527E-08,
         "rotY": 179.999756,
-        "rotZ": -4.47432242E-08,
+        "rotZ": -1.25538557E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -42766,7 +42766,7 @@
       "GMNotes": "Chun-Li.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -42828,9 +42828,9 @@
         "posX": -7.70904732,
         "posY": 0.0636049062,
         "posZ": -63.0179634,
-        "rotX": -1.72137185E-08,
+        "rotX": 2.68819242E-08,
         "rotY": 180.000687,
-        "rotZ": -9.396265E-10,
+        "rotZ": 2.07261461E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -42840,7 +42840,7 @@
       "GMNotes": "Chun-Li.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -42902,9 +42902,9 @@
         "posX": -4.864464,
         "posY": 0.0636049062,
         "posZ": -63.01789,
-        "rotX": -7.530504E-09,
+        "rotX": 1.72585368E-09,
         "rotY": 180.0,
-        "rotZ": -6.565915E-09,
+        "rotZ": -1.68704251E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -42914,7 +42914,7 @@
       "GMNotes": "Chun-Li.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -42976,9 +42976,9 @@
         "posX": -21.84858,
         "posY": 0.0636049062,
         "posZ": -67.14849,
-        "rotX": -3.667484E-08,
+        "rotX": 1.02204449E-08,
         "rotY": 180.0,
-        "rotZ": 2.42516709E-08,
+        "rotZ": -5.48717942E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -42988,7 +42988,7 @@
       "GMNotes": "Dan.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -43050,9 +43050,9 @@
         "posX": -18.9962387,
         "posY": 0.0636049062,
         "posZ": -67.1486,
-        "rotX": 7.15181425E-09,
+        "rotX": 1.62934661E-08,
         "rotY": 179.99794,
-        "rotZ": -6.378466E-08,
+        "rotZ": -2.74795351E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -43062,7 +43062,7 @@
       "GMNotes": "Dan.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -43124,9 +43124,9 @@
         "posX": -16.1473751,
         "posY": 0.0636049062,
         "posZ": -67.1485062,
-        "rotX": -2.41774831E-08,
+        "rotX": 1.98109813E-08,
         "rotY": 179.999863,
-        "rotZ": 1.501777E-08,
+        "rotZ": 2.47098182E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -43136,7 +43136,7 @@
       "GMNotes": "Dan.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -43198,9 +43198,9 @@
         "posX": -13.2928028,
         "posY": 0.0636049062,
         "posZ": -67.14848,
-        "rotX": -3.0937517E-09,
+        "rotX": 1.64593725E-08,
         "rotY": 179.999878,
-        "rotZ": -2.22698E-09,
+        "rotZ": -3.444508E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -43210,7 +43210,7 @@
       "GMNotes": "Dan.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -43272,9 +43272,9 @@
         "posX": -10.4381247,
         "posY": 0.0636049062,
         "posZ": -67.1484451,
-        "rotX": -3.49884632E-09,
+        "rotX": 1.28334694E-08,
         "rotY": 180.000031,
-        "rotZ": 2.80965651E-09,
+        "rotZ": -2.888897E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -43284,7 +43284,7 @@
       "GMNotes": "Dan.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -43346,9 +43346,9 @@
         "posX": -7.588711,
         "posY": 0.0636049062,
         "posZ": -67.14857,
-        "rotX": -6.862897E-09,
+        "rotX": -4.31830971E-09,
         "rotY": 180.000687,
-        "rotZ": -4.2531485E-09,
+        "rotZ": 6.921198E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -43358,7 +43358,7 @@
       "GMNotes": "Dan.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -43420,9 +43420,9 @@
         "posX": -4.74412727,
         "posY": 0.0636049062,
         "posZ": -67.14849,
-        "rotX": 9.00637254E-09,
+        "rotX": -1.00248894E-08,
         "rotY": 180.0,
-        "rotZ": 1.17042438E-08,
+        "rotZ": 2.74860645E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -43432,7 +43432,7 @@
       "GMNotes": "Dan.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -43494,9 +43494,9 @@
         "posX": -21.8346024,
         "posY": 0.0636049062,
         "posZ": -71.2110062,
-        "rotX": -1.36622429E-08,
+        "rotX": 3.85832077E-09,
         "rotY": 180.0223,
-        "rotZ": -3.093131E-08,
+        "rotZ": 4.85468874E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -43506,7 +43506,7 @@
       "GMNotes": "Guile.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -43568,9 +43568,9 @@
         "posX": -18.984211,
         "posY": 0.0636049062,
         "posZ": -71.21105,
-        "rotX": -7.28875627E-09,
+        "rotX": -1.46577994E-08,
         "rotY": 179.9999,
-        "rotZ": 1.06169589E-08,
+        "rotZ": -3.871535E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -43580,7 +43580,7 @@
       "GMNotes": "Guile.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -43642,9 +43642,9 @@
         "posX": -16.1306934,
         "posY": 0.0636049062,
         "posZ": -71.21764,
-        "rotX": -2.368881E-08,
+        "rotX": 4.08318535E-09,
         "rotY": 179.9901,
-        "rotZ": 1.76646853E-09,
+        "rotZ": -1.46505927E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -43654,7 +43654,7 @@
       "GMNotes": "Guile.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -43716,9 +43716,9 @@
         "posX": -13.2830067,
         "posY": 0.0636049062,
         "posZ": -71.20933,
-        "rotX": 4.73760871E-08,
+        "rotX": -3.625038E-08,
         "rotY": 180.0,
-        "rotZ": -8.123747E-09,
+        "rotZ": 8.301557E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -43728,7 +43728,7 @@
       "GMNotes": "Guile.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -43790,9 +43790,9 @@
         "posX": -10.4264717,
         "posY": 0.0636049062,
         "posZ": -71.21952,
-        "rotX": -3.90431936E-08,
+        "rotX": 1.85003779E-09,
         "rotY": 179.986572,
-        "rotZ": 3.39695339E-09,
+        "rotZ": -1.99592822E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -43802,7 +43802,7 @@
       "GMNotes": "Guile.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -43864,9 +43864,9 @@
         "posX": -7.58048248,
         "posY": 0.0636049062,
         "posZ": -71.2168045,
-        "rotX": -5.05628144E-11,
+        "rotX": 1.4973061E-08,
         "rotY": 179.9921,
-        "rotZ": -1.68521783E-08,
+        "rotZ": 8.16239947E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -43876,7 +43876,7 @@
       "GMNotes": "Guile.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -43938,9 +43938,9 @@
         "posX": -4.731188,
         "posY": 0.0636049062,
         "posZ": -71.21262,
-        "rotX": 1.27016913E-08,
+        "rotX": -4.16717931E-08,
         "rotY": 179.986313,
-        "rotZ": -5.49536239E-08,
+        "rotZ": 2.832561E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -43950,7 +43950,7 @@
       "GMNotes": "Guile.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -44012,9 +44012,9 @@
         "posX": 4.827156,
         "posY": 0.0636049062,
         "posZ": -50.43523,
-        "rotX": 1.53664814E-08,
+        "rotX": -6.75034162E-09,
         "rotY": 180.0,
-        "rotZ": -6.589552E-09,
+        "rotZ": 1.93098213E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -44024,7 +44024,7 @@
       "GMNotes": "Ken.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -44086,9 +44086,9 @@
         "posX": 7.679547,
         "posY": 0.0636049062,
         "posZ": -50.4353333,
-        "rotX": 1.11947358E-08,
+        "rotX": 1.26553186E-08,
         "rotY": 179.997025,
-        "rotZ": -1.554424E-08,
+        "rotZ": -9.845251E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -44098,7 +44098,7 @@
       "GMNotes": "Ken.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -44160,9 +44160,9 @@
         "posX": 10.5311375,
         "posY": 0.0636049062,
         "posZ": -50.43523,
-        "rotX": -3.14633866E-08,
+        "rotX": 4.56061962E-08,
         "rotY": 179.989731,
-        "rotZ": 2.541778E-09,
+        "rotZ": -1.72776886E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -44172,7 +44172,7 @@
       "GMNotes": "Ken.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -44234,9 +44234,9 @@
         "posX": 13.3789577,
         "posY": 0.0636049062,
         "posZ": -50.43523,
-        "rotX": -4.56034535E-08,
+        "rotX": -1.52950026E-08,
         "rotY": 180.0,
-        "rotZ": -1.40116363E-08,
+        "rotZ": 9.2201935E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -44246,7 +44246,7 @@
       "GMNotes": "Ken.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -44308,9 +44308,9 @@
         "posX": 16.2376175,
         "posY": 0.0636049062,
         "posZ": -50.435215,
-        "rotX": -6.748389E-08,
+        "rotX": 1.63384737E-08,
         "rotY": 179.999741,
-        "rotZ": 4.31885239E-09,
+        "rotZ": 5.9452276E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -44320,7 +44320,7 @@
       "GMNotes": "Ken.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -44382,9 +44382,9 @@
         "posX": 19.0901089,
         "posY": 0.0636049062,
         "posZ": -50.43531,
-        "rotX": 2.37868019E-08,
+        "rotX": 4.26332347E-09,
         "rotY": 180.000427,
-        "rotZ": -1.26653124E-08,
+        "rotZ": 5.18719929E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -44394,7 +44394,7 @@
       "GMNotes": "Ken.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -44456,9 +44456,9 @@
         "posX": 21.9408226,
         "posY": 0.0636049062,
         "posZ": -50.43523,
-        "rotX": 4.0714216E-08,
+        "rotX": -1.77207493E-09,
         "rotY": 180.0,
-        "rotZ": 3.64541974E-09,
+        "rotZ": -5.096571E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -44468,7 +44468,7 @@
       "GMNotes": "Ken.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -44530,9 +44530,9 @@
         "posX": -0.0551168621,
         "posY": 0.0636049062,
         "posZ": -45.8156853,
-        "rotX": 3.12125437E-08,
+        "rotX": 5.391395E-08,
         "rotY": 180.0,
-        "rotZ": -3.74916054E-09,
+        "rotZ": 3.97279827E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -44542,7 +44542,7 @@
       "GMNotes": "M. Bison.4.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -44584,9 +44584,9 @@
         "posX": 4.85420227,
         "posY": 0.0636049062,
         "posZ": -54.50103,
-        "rotX": 1.58958535E-08,
+        "rotX": -1.19054944E-08,
         "rotY": 180.000015,
-        "rotZ": -8.28534041E-08,
+        "rotZ": -5.802294E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -44596,7 +44596,7 @@
       "GMNotes": "M. Bison.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -44658,9 +44658,9 @@
         "posX": 7.70659828,
         "posY": 0.0636049062,
         "posZ": -54.501133,
-        "rotX": 3.634057E-08,
+        "rotX": -6.9235444E-09,
         "rotY": 179.997009,
-        "rotZ": 1.6850505E-08,
+        "rotZ": -4.434815E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -44670,7 +44670,7 @@
       "GMNotes": "M. Bison.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -44732,9 +44732,9 @@
         "posX": 10.5581875,
         "posY": 0.0636049062,
         "posZ": -54.50103,
-        "rotX": 4.41591332E-08,
+        "rotX": 7.81402854E-09,
         "rotY": 179.989731,
-        "rotZ": 5.47095347E-08,
+        "rotZ": 6.10747231E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -44744,7 +44744,7 @@
       "GMNotes": "M. Bison.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -44806,9 +44806,9 @@
         "posX": 13.4060078,
         "posY": 0.0636049062,
         "posZ": -54.50103,
-        "rotX": -3.83231E-09,
+        "rotX": 3.80771148E-09,
         "rotY": 180.0,
-        "rotZ": -5.5403774E-08,
+        "rotZ": -5.138951E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -44818,7 +44818,7 @@
       "GMNotes": "M. Bison.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -44880,9 +44880,9 @@
         "posX": 16.26467,
         "posY": 0.0636049062,
         "posZ": -54.5010223,
-        "rotX": -4.689374E-08,
+        "rotX": -3.635634E-08,
         "rotY": 179.999649,
-        "rotZ": 7.19838837E-08,
+        "rotZ": -3.96346778E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -44892,7 +44892,7 @@
       "GMNotes": "M. Bison.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -44954,9 +44954,9 @@
         "posX": 19.1148643,
         "posY": 0.0636049062,
         "posZ": -54.5011063,
-        "rotX": -1.2949446E-08,
+        "rotX": -2.7718789E-08,
         "rotY": 180.000641,
-        "rotZ": -2.33566144E-08,
+        "rotZ": 7.540716E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -44966,7 +44966,7 @@
       "GMNotes": "M. Bison.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -45028,9 +45028,9 @@
         "posX": 21.9669533,
         "posY": 0.0636049062,
         "posZ": -54.5010071,
-        "rotX": -6.185054E-08,
+        "rotX": -4.298686E-08,
         "rotY": 179.999741,
-        "rotZ": 5.63752423E-08,
+        "rotZ": -8.689763E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -45040,7 +45040,7 @@
       "GMNotes": "M. Bison.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -45102,9 +45102,9 @@
         "posX": 4.89789772,
         "posY": 0.0636049062,
         "posZ": -58.70905,
-        "rotX": 1.43847878E-09,
+        "rotX": 4.668542E-08,
         "rotY": 180.0,
-        "rotZ": -1.07455191E-08,
+        "rotZ": -2.75440843E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -45114,7 +45114,7 @@
       "GMNotes": "Ryu.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -45176,9 +45176,9 @@
         "posX": 7.750292,
         "posY": 0.0636049062,
         "posZ": -58.7091522,
-        "rotX": 3.37408435E-09,
+        "rotX": -1.35270755E-08,
         "rotY": 179.997009,
-        "rotZ": -1.05095111E-07,
+        "rotZ": 8.501985E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -45188,7 +45188,7 @@
       "GMNotes": "Ryu.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -45250,9 +45250,9 @@
         "posX": 10.601881,
         "posY": 0.0636049062,
         "posZ": -58.70905,
-        "rotX": -1.36433966E-08,
+        "rotX": 2.22877077E-08,
         "rotY": 179.989731,
-        "rotZ": -3.88234E-08,
+        "rotZ": -1.06403251E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -45262,7 +45262,7 @@
       "GMNotes": "Ryu.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -45324,9 +45324,9 @@
         "posX": 13.4497013,
         "posY": 0.0636049062,
         "posZ": -58.70905,
-        "rotX": 5.38939844E-08,
+        "rotX": 6.568322E-09,
         "rotY": 180.0,
-        "rotZ": 4.69293626E-09,
+        "rotZ": -9.1984E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -45336,7 +45336,7 @@
       "GMNotes": "Ryu.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -45398,9 +45398,9 @@
         "posX": 16.3083763,
         "posY": 0.0636049062,
         "posZ": -58.7090454,
-        "rotX": -4.4740478E-08,
+        "rotX": 2.47635734E-09,
         "rotY": 179.999344,
-        "rotZ": 2.89561619E-08,
+        "rotZ": 7.357464E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -45410,7 +45410,7 @@
       "GMNotes": "Ryu.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -45472,9 +45472,9 @@
         "posX": 19.1617184,
         "posY": 0.0636049062,
         "posZ": -58.70914,
-        "rotX": 4.33785949E-08,
+        "rotX": -4.54872945E-10,
         "rotY": 180.000259,
-        "rotZ": -4.214945E-08,
+        "rotZ": -3.421276E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -45484,7 +45484,7 @@
       "GMNotes": "Ryu.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -45546,9 +45546,9 @@
         "posX": 22.0118828,
         "posY": 0.0636049062,
         "posZ": -58.70905,
-        "rotX": 3.03806829E-08,
+        "rotX": -4.81339368E-09,
         "rotY": 180.0,
-        "rotZ": -2.54019223E-08,
+        "rotZ": 2.39816345E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -45558,7 +45558,7 @@
       "GMNotes": "Ryu.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -45620,9 +45620,9 @@
         "posX": 4.870163,
         "posY": 0.0636049062,
         "posZ": -62.97212,
-        "rotX": 9.750475E-09,
+        "rotX": 3.98317157E-09,
         "rotY": 180.0,
-        "rotZ": -1.435926E-08,
+        "rotZ": 1.43532723E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -45632,7 +45632,7 @@
       "GMNotes": "Sagat.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -45694,9 +45694,9 @@
         "posX": 7.72273254,
         "posY": 0.0636049062,
         "posZ": -62.9722366,
-        "rotX": 2.32939961E-08,
+        "rotX": -1.56111941E-08,
         "rotY": 179.995422,
-        "rotZ": 9.98505545E-09,
+        "rotZ": 1.48117785E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -45706,7 +45706,7 @@
       "GMNotes": "Sagat.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -45768,9 +45768,9 @@
         "posX": 10.5713654,
         "posY": 0.0636049062,
         "posZ": -62.97212,
-        "rotX": -3.28549166E-09,
+        "rotX": -3.17649373E-09,
         "rotY": 180.0,
-        "rotZ": 1.99462029E-08,
+        "rotZ": 1.23333646E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -45780,7 +45780,7 @@
       "GMNotes": "Sagat.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -45842,9 +45842,9 @@
         "posX": 13.4219666,
         "posY": 0.0636049062,
         "posZ": -62.97212,
-        "rotX": 5.58357272E-09,
+        "rotX": -6.715463E-11,
         "rotY": 180.0,
-        "rotZ": 5.62946241E-08,
+        "rotZ": 9.034226E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -45854,7 +45854,7 @@
       "GMNotes": "Sagat.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -45916,9 +45916,9 @@
         "posX": 16.2806263,
         "posY": 0.0636049062,
         "posZ": -62.9721,
-        "rotX": -1.67933212E-09,
+        "rotX": 5.93206E-09,
         "rotY": 179.999741,
-        "rotZ": -1.17018267E-07,
+        "rotZ": 1.32494717E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -45928,7 +45928,7 @@
       "GMNotes": "Sagat.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -45990,9 +45990,9 @@
         "posX": 19.1300373,
         "posY": 0.0636049062,
         "posZ": -62.9722023,
-        "rotX": 1.93894E-08,
+        "rotX": -1.688756E-08,
         "rotY": 180.000565,
-        "rotZ": 3.93983619E-08,
+        "rotZ": 1.49835717E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -46002,7 +46002,7 @@
       "GMNotes": "Sagat.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -46064,9 +46064,9 @@
         "posX": 21.98467,
         "posY": 0.0636049062,
         "posZ": -62.9719963,
-        "rotX": 2.51336267E-08,
+        "rotX": -3.48667371E-08,
         "rotY": 179.999664,
-        "rotZ": 4.04862881E-08,
+        "rotZ": 2.99565457E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -46076,7 +46076,7 @@
       "GMNotes": "Sagat.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567361,
+        "r": 0.121566989,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -46218,11 +46218,11 @@
       "Name": "Deck",
       "Transform": {
         "posX": 44.9276657,
-        "posY": 0.220166132,
+        "posY": 0.220166117,
         "posZ": 27.8493176,
-        "rotX": 4.53540139E-07,
+        "rotX": 1.54282063E-07,
         "rotY": 180.0,
-        "rotZ": -2.2233408E-07,
+        "rotZ": 2.78181228E-10,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -46232,7 +46232,7 @@
       "GMNotes": "",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.12156745,
+        "r": 0.121567078,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -48106,7 +48106,7 @@
         "posX": -1.24325621,
         "posY": -0.01829347,
         "posZ": 8.390969,
-        "rotX": -0.004850029,
+        "rotX": -0.0048500495,
         "rotY": 359.675659,
         "rotZ": 6.387317E-05,
         "scaleX": 0.75,
@@ -48149,7 +48149,7 @@
         "posX": 1.24612784,
         "posY": -0.0182952583,
         "posZ": 8.349557,
-        "rotX": -0.004846298,
+        "rotX": -0.004846304,
         "rotY": 359.8769,
         "rotZ": 4.701171E-05,
         "scaleX": 0.75,
@@ -48161,7 +48161,7 @@
       "GMNotes": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.250979334,
+        "g": 0.250978947,
         "b": 0.5019608
       },
       "LayoutGroupSortIndex": 0,
@@ -48189,11 +48189,11 @@
       "GUID": "36b535",
       "Name": "3DText",
       "Transform": {
-        "posX": -1.250843,
-        "posY": 0.5000062,
+        "posX": -1.25114453,
+        "posY": 0.5000097,
         "posZ": 12.000001,
         "rotX": 90.0,
-        "rotY": 5.895596E-10,
+        "rotY": 2.947798E-10,
         "rotZ": 0.0,
         "scaleX": 1.0,
         "scaleY": 1.0,
@@ -48238,11 +48238,11 @@
       "GUID": "ffed4f",
       "Name": "3DText",
       "Transform": {
-        "posX": 1.24917221,
-        "posY": 0.5000062,
-        "posZ": 11.99999,
+        "posX": 1.248871,
+        "posY": 0.5000097,
+        "posZ": 11.9999819,
         "rotX": 90.0,
-        "rotY": 5.895596E-10,
+        "rotY": 2.947798E-10,
         "rotZ": 0.0,
         "scaleX": 1.0,
         "scaleY": 1.0,
@@ -48452,9 +48452,9 @@
         "posX": 66.39912,
         "posY": 0.0636049062,
         "posZ": -48.3979263,
-        "rotX": -6.66888633E-09,
+        "rotX": 4.323939E-08,
         "rotY": 180.0,
-        "rotZ": -1.94299634E-08,
+        "rotZ": 3.14106536E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -48464,7 +48464,7 @@
       "GMNotes": "Cammy.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567272,
+        "r": 0.121566884,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -48526,9 +48526,9 @@
         "posX": 63.5743065,
         "posY": 0.0636049062,
         "posZ": -48.39911,
-        "rotX": 1.7287034E-08,
+        "rotX": -3.66019641E-08,
         "rotY": 180.0,
-        "rotZ": 2.7391962E-09,
+        "rotZ": 4.76811435E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -48538,7 +48538,7 @@
       "GMNotes": "Cammy.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567272,
+        "r": 0.121566884,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -48600,9 +48600,9 @@
         "posX": 60.72364,
         "posY": 0.0636049062,
         "posZ": -48.40203,
-        "rotX": -2.27272441E-08,
+        "rotX": 1.93118588E-08,
         "rotY": 179.996521,
-        "rotZ": 2.57320423E-08,
+        "rotZ": -3.95482758E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -48612,7 +48612,7 @@
       "GMNotes": "Cammy.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567272,
+        "r": 0.121566884,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -48674,9 +48674,9 @@
         "posX": 57.84463,
         "posY": 0.0636049062,
         "posZ": -48.40424,
-        "rotX": -1.25145752E-08,
+        "rotX": 1.98296188E-08,
         "rotY": 180.000031,
-        "rotZ": 4.99317165E-09,
+        "rotZ": 1.62377347E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -48686,7 +48686,7 @@
       "GMNotes": "Cammy.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567272,
+        "r": 0.121566884,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -48748,9 +48748,9 @@
         "posX": 49.28593,
         "posY": 0.0636049062,
         "posZ": -48.4096375,
-        "rotX": 1.65485083E-08,
+        "rotX": -4.62553942E-08,
         "rotY": 180.000031,
-        "rotZ": -4.7298915E-08,
+        "rotZ": -7.732819E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -48760,7 +48760,7 @@
       "GMNotes": "Cammy.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567272,
+        "r": 0.121566884,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -48822,9 +48822,9 @@
         "posX": 52.13653,
         "posY": 0.0636049062,
         "posZ": -48.40785,
-        "rotX": 3.566521E-08,
+        "rotX": -5.87443161E-08,
         "rotY": 180.000031,
-        "rotZ": -1.02118E-08,
+        "rotZ": 5.54987025E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -48834,7 +48834,7 @@
       "GMNotes": "Cammy.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567272,
+        "r": 0.121566884,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -48896,9 +48896,9 @@
         "posX": 54.987133,
         "posY": 0.0636049062,
         "posZ": -48.40606,
-        "rotX": -3.89512023E-09,
+        "rotX": -4.35814975E-08,
         "rotY": 180.000031,
-        "rotZ": -1.59787046E-08,
+        "rotZ": -5.87047246E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -48908,7 +48908,7 @@
       "GMNotes": "Cammy.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567272,
+        "r": 0.121566884,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -48970,9 +48970,9 @@
         "posX": 66.40147,
         "posY": 0.0636049062,
         "posZ": -52.3976822,
-        "rotX": 1.84074018E-08,
+        "rotX": -3.226792E-09,
         "rotY": 180.0,
-        "rotZ": -2.39493332E-08,
+        "rotZ": 1.77995272E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -48982,7 +48982,7 @@
       "GMNotes": "Cammy.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -49044,9 +49044,9 @@
         "posX": 63.5766335,
         "posY": 0.0636049062,
         "posZ": -52.39907,
-        "rotX": -1.56746847E-08,
+        "rotX": 3.80861653E-09,
         "rotY": 179.997055,
-        "rotZ": 2.6806692E-08,
+        "rotZ": -4.91831678E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -49056,7 +49056,7 @@
       "GMNotes": "Cammy.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -49118,9 +49118,9 @@
         "posX": 60.7265854,
         "posY": 0.06360491,
         "posZ": -52.4021835,
-        "rotX": 1.65110745E-10,
+        "rotX": 5.1934375E-08,
         "rotY": 180.027115,
-        "rotZ": 2.53364685E-09,
+        "rotZ": 3.15923181E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -49130,7 +49130,7 @@
       "GMNotes": "Cammy.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -49192,9 +49192,9 @@
         "posX": 57.8468933,
         "posY": 0.06360491,
         "posZ": -52.4042358,
-        "rotX": -3.938641E-10,
+        "rotX": -2.3866578E-08,
         "rotY": 180.0246,
-        "rotZ": 9.980583E-10,
+        "rotZ": -4.3711136E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -49204,7 +49204,7 @@
       "GMNotes": "Cammy.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -49266,9 +49266,9 @@
         "posX": 49.2884445,
         "posY": 0.06360491,
         "posZ": -52.4096565,
-        "rotX": -2.80544583E-08,
+        "rotX": -5.49716E-09,
         "rotY": 180.030121,
-        "rotZ": 3.19561551E-08,
+        "rotZ": -1.54370632E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -49278,7 +49278,7 @@
       "GMNotes": "Cammy.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -49340,9 +49340,9 @@
         "posX": 52.13744,
         "posY": 0.06360491,
         "posZ": -52.42025,
-        "rotX": 6.18578042E-08,
+        "rotX": -3.71420157E-08,
         "rotY": 180.0299,
-        "rotZ": -1.55874957E-08,
+        "rotZ": -2.2737078E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -49352,7 +49352,7 @@
       "GMNotes": "Cammy.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -49414,9 +49414,9 @@
         "posX": 54.98965,
         "posY": 0.0636049062,
         "posZ": -52.4060478,
-        "rotX": 5.466665E-08,
+        "rotX": -1.70165233E-08,
         "rotY": 179.999863,
-        "rotZ": -1.42380969E-08,
+        "rotZ": 9.606631E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -49426,7 +49426,7 @@
       "GMNotes": "Cammy.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567242,
+        "r": 0.121566854,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -49488,9 +49488,9 @@
         "posX": 0.09874707,
         "posY": 0.05530349,
         "posZ": 3.603562,
-        "rotX": 0.004845244,
+        "rotX": 0.004845242,
         "rotY": 180.039459,
-        "rotZ": -3.39989674E-05,
+        "rotZ": -3.39989456E-05,
         "scaleX": 5.0,
         "scaleY": 0.1,
         "scaleZ": 1.0
@@ -49499,7 +49499,7 @@
       "Description": "",
       "GMNotes": "",
       "ColorDiffuse": {
-        "r": 0.3427573,
+        "r": 0.342756927,
         "g": 0.0,
         "b": 0.456445634
       },
@@ -49607,12 +49607,12 @@
       "GUID": "8bc799",
       "Name": "Card",
       "Transform": {
-        "posX": -44.2626648,
-        "posY": 0.394285947,
-        "posZ": 27.01652,
-        "rotX": 0.0006483741,
-        "rotY": 179.965881,
-        "rotZ": 0.000733472756,
+        "posX": -44.2626572,
+        "posY": 0.394300252,
+        "posZ": 27.0165138,
+        "rotX": 0.000153101,
+        "rotY": 179.966064,
+        "rotZ": 0.0005418164,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -49622,7 +49622,7 @@
       "GMNotes": "Zangief.3.00",
       "Memo": "nonstackable",
       "ColorDiffuse": {
-        "r": 0.121567272,
+        "r": 0.121566884,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -49662,11 +49662,11 @@
       "Name": "Deck",
       "Transform": {
         "posX": 41.7848854,
-        "posY": 0.220166177,
+        "posY": 0.220166132,
         "posZ": 27.8957,
-        "rotX": 1.56828048E-06,
+        "rotX": 4.29844079E-07,
         "rotY": 180.007172,
-        "rotZ": -1.46187062E-06,
+        "rotZ": 1.512099E-07,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -49675,7 +49675,7 @@
       "Description": "",
       "GMNotes": "",
       "ColorDiffuse": {
-        "r": 0.121567048,
+        "r": 0.121566676,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -51441,11 +51441,11 @@
       "Name": "Deck",
       "Transform": {
         "posX": -44.26265,
-        "posY": 0.2153487,
-        "posZ": 27.01642,
-        "rotX": 2.72114667E-05,
-        "rotY": 179.997849,
-        "rotZ": 180.000168,
+        "posY": 0.21535103,
+        "posZ": 27.0164223,
+        "rotX": 7.60798275E-06,
+        "rotY": 179.997528,
+        "rotZ": 180.000046,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -51454,7 +51454,7 @@
       "Description": "",
       "GMNotes": "",
       "ColorDiffuse": {
-        "r": 0.121567108,
+        "r": 0.121566735,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -53152,381 +53152,12 @@
       ]
     },
     {
-      "GUID": "c15202",
-      "Name": "ScriptingTrigger",
-      "Transform": {
-        "posX": -12.0,
-        "posY": 0.5,
-        "posZ": 20.0,
-        "rotX": 0.0,
-        "rotY": 0.0,
-        "rotZ": 0.0,
-        "scaleX": 2.3,
-        "scaleY": 0.5,
-        "scaleZ": 3.0
-      },
-      "Nickname": "1",
-      "Description": "",
-      "GMNotes": "",
-      "ColorDiffuse": {
-        "r": 1.0,
-        "g": 1.0,
-        "b": 1.0,
-        "a": 0.509803951
-      },
-      "LayoutGroupSortIndex": 0,
-      "Value": 0,
-      "Locked": true,
-      "Grid": true,
-      "Snap": true,
-      "IgnoreFoW": false,
-      "MeasureMovement": false,
-      "DragSelectable": true,
-      "Autoraise": true,
-      "Sticky": true,
-      "Tooltip": true,
-      "GridProjection": false,
-      "HideWhenFaceDown": false,
-      "Hands": false,
-      "LuaScript": "",
-      "LuaScriptState": "",
-      "XmlUI": ""
-    },
-    {
-      "GUID": "d3e91a",
-      "Name": "ScriptingTrigger",
-      "Transform": {
-        "posX": -9.0,
-        "posY": 0.5,
-        "posZ": 20.0,
-        "rotX": 0.0,
-        "rotY": 0.0,
-        "rotZ": 0.0,
-        "scaleX": 2.3,
-        "scaleY": 0.5,
-        "scaleZ": 3.0
-      },
-      "Nickname": "2",
-      "Description": "",
-      "GMNotes": "",
-      "ColorDiffuse": {
-        "r": 1.0,
-        "g": 1.0,
-        "b": 1.0,
-        "a": 0.509803951
-      },
-      "LayoutGroupSortIndex": 0,
-      "Value": 0,
-      "Locked": true,
-      "Grid": true,
-      "Snap": true,
-      "IgnoreFoW": false,
-      "MeasureMovement": false,
-      "DragSelectable": true,
-      "Autoraise": true,
-      "Sticky": true,
-      "Tooltip": true,
-      "GridProjection": false,
-      "HideWhenFaceDown": false,
-      "Hands": false,
-      "LuaScript": "",
-      "LuaScriptState": "",
-      "XmlUI": ""
-    },
-    {
-      "GUID": "e0ff3b",
-      "Name": "ScriptingTrigger",
-      "Transform": {
-        "posX": -3.0,
-        "posY": 0.5,
-        "posZ": 20.0,
-        "rotX": 0.0,
-        "rotY": 0.0,
-        "rotZ": 0.0,
-        "scaleX": 2.3,
-        "scaleY": 0.5,
-        "scaleZ": 3.0
-      },
-      "Nickname": "4",
-      "Description": "",
-      "GMNotes": "",
-      "ColorDiffuse": {
-        "r": 1.0,
-        "g": 1.0,
-        "b": 1.0,
-        "a": 0.509803951
-      },
-      "LayoutGroupSortIndex": 0,
-      "Value": 0,
-      "Locked": true,
-      "Grid": true,
-      "Snap": true,
-      "IgnoreFoW": false,
-      "MeasureMovement": false,
-      "DragSelectable": true,
-      "Autoraise": true,
-      "Sticky": true,
-      "Tooltip": true,
-      "GridProjection": false,
-      "HideWhenFaceDown": false,
-      "Hands": false,
-      "LuaScript": "",
-      "LuaScriptState": "",
-      "XmlUI": ""
-    },
-    {
-      "GUID": "21d308",
-      "Name": "ScriptingTrigger",
-      "Transform": {
-        "posX": 0.0,
-        "posY": 0.5,
-        "posZ": 20.0,
-        "rotX": 0.0,
-        "rotY": 0.0,
-        "rotZ": 0.0,
-        "scaleX": 2.3,
-        "scaleY": 0.5,
-        "scaleZ": 3.0
-      },
-      "Nickname": "5",
-      "Description": "",
-      "GMNotes": "",
-      "ColorDiffuse": {
-        "r": 1.0,
-        "g": 1.0,
-        "b": 1.0,
-        "a": 0.509803951
-      },
-      "LayoutGroupSortIndex": 0,
-      "Value": 0,
-      "Locked": true,
-      "Grid": true,
-      "Snap": true,
-      "IgnoreFoW": false,
-      "MeasureMovement": false,
-      "DragSelectable": true,
-      "Autoraise": true,
-      "Sticky": true,
-      "Tooltip": true,
-      "GridProjection": false,
-      "HideWhenFaceDown": false,
-      "Hands": false,
-      "LuaScript": "",
-      "LuaScriptState": "",
-      "XmlUI": ""
-    },
-    {
-      "GUID": "bd1420",
-      "Name": "ScriptingTrigger",
-      "Transform": {
-        "posX": 3.0,
-        "posY": 0.5,
-        "posZ": 20.0,
-        "rotX": 0.0,
-        "rotY": 0.0,
-        "rotZ": 0.0,
-        "scaleX": 2.3,
-        "scaleY": 0.5,
-        "scaleZ": 3.0
-      },
-      "Nickname": "6",
-      "Description": "",
-      "GMNotes": "",
-      "ColorDiffuse": {
-        "r": 1.0,
-        "g": 1.0,
-        "b": 1.0,
-        "a": 0.509803951
-      },
-      "LayoutGroupSortIndex": 0,
-      "Value": 0,
-      "Locked": true,
-      "Grid": true,
-      "Snap": true,
-      "IgnoreFoW": false,
-      "MeasureMovement": false,
-      "DragSelectable": true,
-      "Autoraise": true,
-      "Sticky": true,
-      "Tooltip": true,
-      "GridProjection": false,
-      "HideWhenFaceDown": false,
-      "Hands": false,
-      "LuaScript": "",
-      "LuaScriptState": "",
-      "XmlUI": ""
-    },
-    {
-      "GUID": "6e5860",
-      "Name": "ScriptingTrigger",
-      "Transform": {
-        "posX": 6.0,
-        "posY": 0.5,
-        "posZ": 20.0,
-        "rotX": 0.0,
-        "rotY": 0.0,
-        "rotZ": 0.0,
-        "scaleX": 2.3,
-        "scaleY": 0.5,
-        "scaleZ": 3.0
-      },
-      "Nickname": "7",
-      "Description": "",
-      "GMNotes": "",
-      "ColorDiffuse": {
-        "r": 1.0,
-        "g": 1.0,
-        "b": 1.0,
-        "a": 0.509803951
-      },
-      "LayoutGroupSortIndex": 0,
-      "Value": 0,
-      "Locked": true,
-      "Grid": true,
-      "Snap": true,
-      "IgnoreFoW": false,
-      "MeasureMovement": false,
-      "DragSelectable": true,
-      "Autoraise": true,
-      "Sticky": true,
-      "Tooltip": true,
-      "GridProjection": false,
-      "HideWhenFaceDown": false,
-      "Hands": false,
-      "LuaScript": "",
-      "LuaScriptState": "",
-      "XmlUI": ""
-    },
-    {
-      "GUID": "5613fe",
-      "Name": "ScriptingTrigger",
-      "Transform": {
-        "posX": 9.0,
-        "posY": 0.5,
-        "posZ": 20.0,
-        "rotX": 0.0,
-        "rotY": 0.0,
-        "rotZ": 0.0,
-        "scaleX": 2.3,
-        "scaleY": 0.5,
-        "scaleZ": 3.0
-      },
-      "Nickname": "8",
-      "Description": "",
-      "GMNotes": "",
-      "ColorDiffuse": {
-        "r": 1.0,
-        "g": 1.0,
-        "b": 1.0,
-        "a": 0.509803951
-      },
-      "LayoutGroupSortIndex": 0,
-      "Value": 0,
-      "Locked": true,
-      "Grid": true,
-      "Snap": true,
-      "IgnoreFoW": false,
-      "MeasureMovement": false,
-      "DragSelectable": true,
-      "Autoraise": true,
-      "Sticky": true,
-      "Tooltip": true,
-      "GridProjection": false,
-      "HideWhenFaceDown": false,
-      "Hands": false,
-      "LuaScript": "",
-      "LuaScriptState": "",
-      "XmlUI": ""
-    },
-    {
-      "GUID": "8cf38a",
-      "Name": "ScriptingTrigger",
-      "Transform": {
-        "posX": 12.0,
-        "posY": 0.5,
-        "posZ": 20.0,
-        "rotX": 0.0,
-        "rotY": 0.0,
-        "rotZ": 0.0,
-        "scaleX": 2.3,
-        "scaleY": 0.5,
-        "scaleZ": 3.0
-      },
-      "Nickname": "9",
-      "Description": "",
-      "GMNotes": "",
-      "ColorDiffuse": {
-        "r": 1.0,
-        "g": 1.0,
-        "b": 1.0,
-        "a": 0.509803951
-      },
-      "LayoutGroupSortIndex": 0,
-      "Value": 0,
-      "Locked": true,
-      "Grid": true,
-      "Snap": true,
-      "IgnoreFoW": false,
-      "MeasureMovement": false,
-      "DragSelectable": true,
-      "Autoraise": true,
-      "Sticky": true,
-      "Tooltip": true,
-      "GridProjection": false,
-      "HideWhenFaceDown": false,
-      "Hands": false,
-      "LuaScript": "",
-      "LuaScriptState": "",
-      "XmlUI": ""
-    },
-    {
-      "GUID": "11a02f",
-      "Name": "ScriptingTrigger",
-      "Transform": {
-        "posX": -6.0,
-        "posY": 0.5,
-        "posZ": 20.0,
-        "rotX": 0.0,
-        "rotY": 0.0,
-        "rotZ": 0.0,
-        "scaleX": 2.3,
-        "scaleY": 0.5,
-        "scaleZ": 3.0
-      },
-      "Nickname": "3",
-      "Description": "",
-      "GMNotes": "",
-      "ColorDiffuse": {
-        "r": 1.0,
-        "g": 1.0,
-        "b": 1.0,
-        "a": 0.509803951
-      },
-      "LayoutGroupSortIndex": 0,
-      "Value": 0,
-      "Locked": true,
-      "Grid": true,
-      "Snap": true,
-      "IgnoreFoW": false,
-      "MeasureMovement": false,
-      "DragSelectable": true,
-      "Autoraise": true,
-      "Sticky": true,
-      "Tooltip": true,
-      "GridProjection": false,
-      "HideWhenFaceDown": false,
-      "Hands": false,
-      "LuaScript": "",
-      "LuaScriptState": "",
-      "XmlUI": ""
-    },
-    {
       "GUID": "246491",
       "Name": "3DText",
       "Transform": {
-        "posX": 0.0704689,
-        "posY": 0.50000155,
-        "posZ": 13.4929609,
+        "posX": 0.0701637343,
+        "posY": 0.5000055,
+        "posZ": 13.4929476,
         "rotX": 90.0,
         "rotY": -2.947798E-10,
         "rotZ": 0.0,
@@ -53576,9 +53207,9 @@
         "posX": 31.7912922,
         "posY": 0.06360501,
         "posZ": 19.0087318,
-        "rotX": 3.28394151E-07,
+        "rotX": 2.97117083E-07,
         "rotY": 180.000076,
-        "rotZ": 9.36792954E-09,
+        "rotZ": 3.772384E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -53588,7 +53219,7 @@
       "GMNotes": "Sagat.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -53650,9 +53281,9 @@
         "posX": 34.63685,
         "posY": 0.06360501,
         "posZ": 19.0118465,
-        "rotX": 2.55989022E-07,
+        "rotX": 2.83099951E-07,
         "rotY": 180.0,
-        "rotZ": -6.748358E-08,
+        "rotZ": -1.35510811E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -53662,7 +53293,7 @@
       "GMNotes": "Sagat.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -53722,11 +53353,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 17.5108871,
-        "posY": 0.0202189926,
+        "posY": 0.0202189852,
         "posZ": 19.00016,
-        "rotX": 0.004835392,
-        "rotY": 180.0,
-        "rotZ": -3.72903742E-05,
+        "rotX": 0.00483533274,
+        "rotY": 179.999954,
+        "rotZ": -3.70316848E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -53736,7 +53367,7 @@
       "GMNotes": "Sagat.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -53796,11 +53427,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 20.3645821,
-        "posY": 0.0202209614,
+        "posY": 0.02022097,
         "posZ": 19.00174,
-        "rotX": 0.00483515672,
-        "rotY": 179.680038,
-        "rotZ": -6.401128E-05,
+        "rotX": 0.00483531738,
+        "rotY": 179.68,
+        "rotZ": -6.4060514E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -53810,7 +53441,7 @@
       "GMNotes": "Sagat.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -53870,11 +53501,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 26.0683842,
-        "posY": 0.0202249922,
+        "posY": 0.0202249736,
         "posZ": 19.0055771,
-        "rotX": 0.004835762,
+        "rotX": 0.00483542727,
         "rotY": 180.0,
-        "rotZ": -3.70261951E-05,
+        "rotZ": -3.718343E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -53884,7 +53515,7 @@
       "GMNotes": "Sagat.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -53944,11 +53575,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 23.2154541,
-        "posY": 0.02022297,
+        "posY": 0.0202229582,
         "posZ": 19.00351,
-        "rotX": 0.00483555533,
-        "rotY": 180.0,
-        "rotZ": -3.71887982E-05,
+        "rotX": 0.004835386,
+        "rotY": 179.999954,
+        "rotZ": -3.706217E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -53958,7 +53589,7 @@
       "GMNotes": "Sagat.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -54017,11 +53648,11 @@
       "GUID": "b7b6f8",
       "Name": "Card",
       "Transform": {
-        "posX": 28.9201031,
-        "posY": 0.04473237,
+        "posX": 28.9200974,
+        "posY": 0.0447323136,
         "posZ": 19.00658,
-        "rotX": 0.00445107371,
-        "rotY": 179.997437,
+        "rotX": 0.004451471,
+        "rotY": 179.997787,
         "rotZ": 358.9988,
         "scaleX": 1.25,
         "scaleY": 1.0,
@@ -54032,7 +53663,7 @@
       "GMNotes": "Sagat.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -54091,11 +53722,11 @@
       "GUID": "d033a7",
       "Name": "Card",
       "Transform": {
-        "posX": 28.9222145,
-        "posY": 0.04460274,
-        "posZ": 15.0071087,
-        "rotX": 0.004818504,
-        "rotY": 180.26329,
+        "posX": 28.92221,
+        "posY": 0.04460272,
+        "posZ": 15.0071135,
+        "rotX": 0.00481895031,
+        "rotY": 180.263474,
         "rotZ": 358.989838,
         "scaleX": 1.25,
         "scaleY": 1.0,
@@ -54106,7 +53737,7 @@
       "GMNotes": "Sagat.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -54168,9 +53799,9 @@
         "posX": 23.2184,
         "posY": 0.0198854189,
         "posZ": 15.003582,
-        "rotX": 0.00483551342,
-        "rotY": 179.9999,
-        "rotZ": -3.72500035E-05,
+        "rotX": 0.00483558327,
+        "rotY": 179.999878,
+        "rotZ": -3.717875E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -54180,7 +53811,7 @@
       "GMNotes": "Sagat.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -54240,11 +53871,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 26.0884037,
-        "posY": 0.0198874455,
+        "posY": 0.0198874511,
         "posZ": 15.0058174,
-        "rotX": 0.004835461,
-        "rotY": 179.999985,
-        "rotZ": -3.7032667E-05,
+        "rotX": 0.00483522424,
+        "rotY": 179.999878,
+        "rotZ": -3.691771E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -54254,7 +53885,7 @@
       "GMNotes": "Sagat.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -54314,11 +53945,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 20.3644962,
-        "posY": 0.0198833831,
+        "posY": 0.0198833961,
         "posZ": 15.0016918,
-        "rotX": 0.00483545428,
-        "rotY": 179.999985,
-        "rotZ": -3.7328904E-05,
+        "rotX": 0.0048354133,
+        "rotY": 179.999878,
+        "rotZ": -3.7173857E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -54328,7 +53959,7 @@
       "GMNotes": "Sagat.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -54388,11 +54019,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 17.5134048,
-        "posY": 0.01988142,
+        "posY": 0.0198814161,
         "posZ": 15.0001774,
-        "rotX": 0.00483555673,
+        "rotX": 0.00483565032,
         "rotY": 180.0,
-        "rotZ": -3.695254E-05,
+        "rotZ": -3.70461166E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -54402,7 +54033,7 @@
       "GMNotes": "Sagat.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -54464,9 +54095,9 @@
         "posX": 34.63946,
         "posY": 0.06360499,
         "posZ": 15.0118914,
-        "rotX": 3.00798234E-07,
+        "rotX": 2.98026464E-07,
         "rotY": 180.0,
-        "rotZ": 5.216382E-09,
+        "rotZ": 3.263901E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -54476,7 +54107,7 @@
       "GMNotes": "Sagat.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -54538,9 +54169,9 @@
         "posX": 31.79413,
         "posY": 0.06360499,
         "posZ": 15.0086393,
-        "rotX": 3.2145573E-07,
+        "rotX": 3.26731E-07,
         "rotY": 180.0,
-        "rotZ": 6.568193E-08,
+        "rotZ": 1.066964E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -54550,7 +54181,7 @@
       "GMNotes": "Sagat.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -54609,12 +54240,12 @@
       "GUID": "961a44",
       "Name": "Card",
       "Transform": {
-        "posX": 6.00000763,
-        "posY": 0.309726745,
+        "posX": 6.000059,
+        "posY": 0.309726715,
         "posZ": 20.0000019,
-        "rotX": 0.00485016173,
-        "rotY": 180.0,
-        "rotZ": -2.8933714E-06,
+        "rotX": 0.004853003,
+        "rotY": 179.999939,
+        "rotZ": -2.92287473E-06,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -54624,7 +54255,7 @@
       "GMNotes": "Sagat.3.00",
       "Memo": "nonstackable",
       "ColorDiffuse": {
-        "r": 0.121567272,
+        "r": 0.121566884,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -54664,11 +54295,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 26.2349834,
-        "posY": 0.01895549,
+        "posY": 0.0189554933,
         "posZ": 3.9618876,
-        "rotX": 0.004835227,
-        "rotY": 180.035965,
-        "rotZ": -3.39836E-05,
+        "rotX": 0.00483551063,
+        "rotY": 180.035919,
+        "rotZ": -3.4204073E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -54678,7 +54309,7 @@
       "GMNotes": "Sagat.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567212,
+        "r": 0.121566825,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -54738,11 +54369,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 12.0930557,
-        "posY": 0.0189440642,
+        "posY": 0.01894405,
         "posZ": 3.93456936,
-        "rotX": 0.004835222,
+        "rotX": 0.00483527,
         "rotY": 179.977554,
-        "rotZ": -3.88520675E-05,
+        "rotZ": -3.90832247E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -54752,7 +54383,7 @@
       "GMNotes": "Sagat.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567212,
+        "r": 0.121566825,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -54812,11 +54443,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 14.9294691,
-        "posY": 0.0325984247,
-        "posZ": 3.81785846,
-        "rotX": 0.004816605,
-        "rotY": 179.968979,
-        "rotZ": 359.441223,
+        "posY": 0.0326007567,
+        "posZ": 3.81786251,
+        "rotX": 0.00480676955,
+        "rotY": 179.968964,
+        "rotZ": 359.4415,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -54826,7 +54457,7 @@
       "GMNotes": "Sagat.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567212,
+        "r": 0.121566825,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -54886,11 +54517,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 17.7185974,
-        "posY": 0.0189473964,
-        "posZ": 3.93678331,
-        "rotX": 0.004829443,
-        "rotY": 179.97757,
-        "rotZ": 9.215027E-05,
+        "posY": 0.018948542,
+        "posZ": 3.9367907,
+        "rotX": 0.004830682,
+        "rotY": 179.977859,
+        "rotZ": -6.16635225E-06,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -54900,7 +54531,7 @@
       "GMNotes": "Sagat.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567212,
+        "r": 0.121566825,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -54962,9 +54593,9 @@
         "posX": 20.5347614,
         "posY": 0.01894973,
         "posZ": 3.936917,
-        "rotX": 0.00483543,
+        "rotX": 0.004835427,
         "rotY": 179.977158,
-        "rotZ": -3.89444358E-05,
+        "rotZ": -3.91362955E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -54974,7 +54605,7 @@
       "GMNotes": "Sagat.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567212,
+        "r": 0.121566825,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -55034,11 +54665,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 23.3485088,
-        "posY": 0.0189516768,
+        "posY": 0.0189516824,
         "posZ": 3.9387846,
-        "rotX": 0.004835668,
+        "rotX": 0.00483529177,
         "rotY": 179.9803,
-        "rotZ": -3.862584E-05,
+        "rotZ": -3.872592E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -55048,7 +54679,7 @@
       "GMNotes": "Sagat.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567212,
+        "r": 0.121566825,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -55108,10 +54739,10 @@
       "Name": "Card",
       "Transform": {
         "posX": 29.0827427,
-        "posY": 0.04594024,
-        "posZ": 3.845099,
-        "rotX": 0.004443613,
-        "rotY": 180.005463,
+        "posY": 0.04594018,
+        "posZ": 3.84510231,
+        "rotX": 0.00444601849,
+        "rotY": 180.0056,
         "rotZ": 358.897125,
         "scaleX": 1.25,
         "scaleY": 1.0,
@@ -55122,7 +54753,7 @@
       "GMNotes": "Sagat.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567212,
+        "r": 0.121566825,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -55181,12 +54812,12 @@
       "GUID": "02335c",
       "Name": "Card",
       "Transform": {
-        "posX": -6.00000668,
+        "posX": -6.000024,
         "posY": 0.309726119,
-        "posZ": 19.9999924,
-        "rotX": 0.004851849,
-        "rotY": 179.999817,
-        "rotZ": -2.768734E-06,
+        "posZ": 20.0000038,
+        "rotX": 0.00485209562,
+        "rotY": 179.995178,
+        "rotZ": -3.34235779E-06,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -55196,7 +54827,7 @@
       "GMNotes": "Chun-Li.3.00",
       "Memo": "nonstackable",
       "ColorDiffuse": {
-        "r": 0.121567272,
+        "r": 0.121566884,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -55236,11 +54867,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -20.5325375,
-        "posY": 0.0202026144,
+        "posY": 0.02020262,
         "posZ": 19.09798,
-        "rotX": 0.00483558746,
-        "rotY": 180.0,
-        "rotZ": -3.6964E-05,
+        "rotX": 0.004835436,
+        "rotY": 180.000015,
+        "rotZ": -3.708795E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -55250,7 +54881,7 @@
       "GMNotes": "Chun-Li.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -55310,11 +54941,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -26.2387943,
-        "posY": 0.0201988816,
+        "posY": 0.0201988742,
         "posZ": 19.0978165,
-        "rotX": 0.004835261,
-        "rotY": 180.0,
-        "rotZ": -3.70805574E-05,
+        "rotX": 0.00483563542,
+        "rotY": 180.000031,
+        "rotZ": -3.69080335E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -55324,7 +54955,7 @@
       "GMNotes": "Chun-Li.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -55384,11 +55015,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -23.3896561,
-        "posY": 0.0202007443,
+        "posY": 0.0202007331,
         "posZ": 19.09774,
-        "rotX": 0.00483550644,
+        "rotX": 0.004835582,
         "rotY": 179.999969,
-        "rotZ": -3.723134E-05,
+        "rotZ": -3.692752E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -55398,7 +55029,7 @@
       "GMNotes": "Chun-Li.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -55457,12 +55088,12 @@
       "GUID": "3215cc",
       "Name": "Card",
       "Transform": {
-        "posX": -29.12629,
-        "posY": 0.0469398163,
-        "posZ": 19.0975342,
-        "rotX": 0.00444047432,
-        "rotY": 179.998749,
-        "rotZ": 1.09361064,
+        "posX": -29.1262836,
+        "posY": 0.0469394773,
+        "posZ": 19.0975285,
+        "rotX": 0.0044403756,
+        "rotY": 179.998871,
+        "rotZ": 1.09362662,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -55472,7 +55103,7 @@
       "GMNotes": "Chun-Li.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -55534,9 +55165,9 @@
         "posX": -34.78651,
         "posY": 0.06360501,
         "posZ": 19.09783,
-        "rotX": 3.105942E-07,
+        "rotX": 2.97673353E-07,
         "rotY": 180.0,
-        "rotZ": 1.22651072E-08,
+        "rotZ": -5.31315125E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -55546,7 +55177,7 @@
       "GMNotes": "Chun-Li.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -55608,9 +55239,9 @@
         "posX": -31.940773,
         "posY": 0.06360501,
         "posZ": 19.0981274,
-        "rotX": 3.20405121E-07,
+        "rotX": 2.9986154E-07,
         "rotY": 180.265076,
-        "rotZ": 1.39028229E-08,
+        "rotZ": 1.8314477E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -55620,7 +55251,7 @@
       "GMNotes": "Chun-Li.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -55682,9 +55313,9 @@
         "posX": -37.6406364,
         "posY": 0.06360501,
         "posZ": 19.09748,
-        "rotX": 3.11989936E-07,
+        "rotX": 2.90816757E-07,
         "rotY": 180.0,
-        "rotZ": -4.4448436E-09,
+        "rotZ": -4.597221E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -55694,7 +55325,7 @@
       "GMNotes": "Chun-Li.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -55754,11 +55385,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -20.5328865,
-        "posY": 0.0198648032,
+        "posY": 0.019864805,
         "posZ": 15.095108,
-        "rotX": 0.004835629,
-        "rotY": 179.999985,
-        "rotZ": -3.713375E-05,
+        "rotX": 0.004835208,
+        "rotY": 179.999878,
+        "rotZ": -3.71324677E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -55768,7 +55399,7 @@
       "GMNotes": "Chun-Li.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -55828,11 +55459,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -26.2349434,
-        "posY": 0.019860087,
+        "posY": 0.0198600888,
         "posZ": 15.0831318,
-        "rotX": 0.0048354934,
-        "rotY": 179.999985,
-        "rotZ": -3.708577E-05,
+        "rotX": 0.00483561959,
+        "rotY": 179.999878,
+        "rotZ": -3.72251634E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -55842,7 +55473,7 @@
       "GMNotes": "Chun-Li.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -55902,11 +55533,11 @@
       "Name": "Card",
       "Transform": {
         "posX": -23.3844376,
-        "posY": 0.0198631827,
+        "posY": 0.0198632013,
         "posZ": 15.0981731,
-        "rotX": 0.004835274,
-        "rotY": 179.999847,
-        "rotZ": -3.70634079E-05,
+        "rotX": 0.0048354324,
+        "rotY": 179.999741,
+        "rotZ": -3.70585367E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -55916,7 +55547,7 @@
       "GMNotes": "Chun-Li.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -55975,12 +55606,12 @@
       "GUID": "c35bd7",
       "Name": "Card",
       "Transform": {
-        "posX": -29.0898762,
+        "posX": -29.0898724,
         "posY": 0.0463843942,
-        "posZ": 15.0977755,
-        "rotX": 0.004439134,
-        "rotY": 179.999161,
-        "rotZ": 1.08473158,
+        "posZ": 15.0977707,
+        "rotX": 0.00444336329,
+        "rotY": 179.999176,
+        "rotZ": 1.084726,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -55990,7 +55621,7 @@
       "GMNotes": "Chun-Li.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -56052,9 +55683,9 @@
         "posX": -34.7866135,
         "posY": 0.06360499,
         "posZ": 15.0978289,
-        "rotX": 3.24654025E-07,
+        "rotX": 3.33918564E-07,
         "rotY": 180.0,
-        "rotZ": -2.26139836E-08,
+        "rotZ": 5.874347E-09,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -56064,7 +55695,7 @@
       "GMNotes": "Chun-Li.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -56126,9 +55757,9 @@
         "posX": -31.93992,
         "posY": 0.0636049956,
         "posZ": 15.0981874,
-        "rotX": 3.271566E-07,
+        "rotX": 3.12748881E-07,
         "rotY": 180.031662,
-        "rotZ": 2.4162663E-09,
+        "rotZ": 3.58649537E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -56138,7 +55769,7 @@
       "GMNotes": "Chun-Li.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -56200,9 +55831,9 @@
         "posX": -37.6403122,
         "posY": 0.06360499,
         "posZ": 15.097476,
-        "rotX": 3.009897E-07,
+        "rotX": 3.400447E-07,
         "rotY": 180.0,
-        "rotZ": -1.45653791E-08,
+        "rotZ": 2.20183356E-08,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -56212,7 +55843,7 @@
       "GMNotes": "Chun-Li.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.121567331,
+        "r": 0.121566959,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -56271,12 +55902,12 @@
       "GUID": "ce878c",
       "Name": "Card",
       "Transform": {
-        "posX": 29.0534554,
-        "posY": 0.0454753935,
-        "posZ": -0.104404345,
-        "rotX": 0.004193884,
-        "rotY": 179.821671,
-        "rotZ": 358.902832,
+        "posX": 29.0534935,
+        "posY": 0.0454707667,
+        "posZ": -0.104428418,
+        "rotX": 0.004168113,
+        "rotY": 179.821091,
+        "rotZ": 358.903076,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -56286,7 +55917,7 @@
       "GMNotes": "Chun-Li.2.06.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -56345,12 +55976,12 @@
       "GUID": "c29e13",
       "Name": "Card",
       "Transform": {
-        "posX": 26.24051,
-        "posY": 0.03276572,
-        "posZ": -0.0716385841,
-        "rotX": 0.00512549747,
-        "rotY": 180.1039,
-        "rotZ": 0.5778261,
+        "posX": 26.24039,
+        "posY": 0.0327611975,
+        "posZ": -0.07168719,
+        "rotX": 0.00481079472,
+        "rotY": 180.102158,
+        "rotZ": 0.5781399,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -56360,7 +55991,7 @@
       "GMNotes": "Chun-Li.2.05.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -56419,12 +56050,12 @@
       "GUID": "66742a",
       "Name": "Card",
       "Transform": {
-        "posX": 23.54789,
-        "posY": 0.0186013225,
-        "posZ": -0.0707367957,
-        "rotX": 0.004930952,
-        "rotY": 179.986572,
-        "rotZ": -0.0006718854,
+        "posX": 23.5477982,
+        "posY": 0.0186019782,
+        "posZ": -0.0708143339,
+        "rotX": 0.00492440257,
+        "rotY": 179.98761,
+        "rotZ": -0.000633433636,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -56434,7 +56065,7 @@
       "GMNotes": "Chun-Li.2.04.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -56494,11 +56125,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 20.6932182,
-        "posY": 0.0186116453,
+        "posY": 0.0186116342,
         "posZ": -0.07007398,
-        "rotX": 0.004835394,
+        "rotX": 0.004835236,
         "rotY": 179.9983,
-        "rotZ": -3.71751921E-05,
+        "rotZ": -3.7079797E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -56508,7 +56139,7 @@
       "GMNotes": "Chun-Li.2.03.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -56569,10 +56200,10 @@
       "Transform": {
         "posX": 17.8462963,
         "posY": 0.0186098553,
-        "posZ": -0.0696568,
-        "rotX": 0.00483538024,
+        "posZ": -0.06965684,
+        "rotX": 0.00483549153,
         "rotY": 179.998962,
-        "rotZ": -3.74072733E-05,
+        "rotZ": -3.72252653E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -56582,7 +56213,7 @@
       "GMNotes": "Chun-Li.2.02.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -56642,11 +56273,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 14.99768,
-        "posY": 0.01860795,
-        "posZ": -0.07037155,
-        "rotX": 0.00483515952,
+        "posY": 0.0186079424,
+        "posZ": -0.07037153,
+        "rotX": 0.00483519,
         "rotY": 179.980408,
-        "rotZ": -3.85880558E-05,
+        "rotZ": -3.86978427E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -56656,7 +56287,7 @@
       "GMNotes": "Chun-Li.2.01.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -56717,10 +56348,10 @@
       "Transform": {
         "posX": 12.1450739,
         "posY": 0.0186060723,
-        "posZ": -0.07053981,
-        "rotX": 0.004835321,
+        "posZ": -0.07053955,
+        "rotX": 0.004835413,
         "rotY": 179.999359,
-        "rotZ": -3.72220857E-05,
+        "rotZ": -3.71610076E-05,
         "scaleX": 1.25,
         "scaleY": 1.0,
         "scaleZ": 1.25
@@ -56730,7 +56361,7 @@
       "GMNotes": "Chun-Li.2.00.reference",
       "Memo": "",
       "ColorDiffuse": {
-        "r": 0.1215673,
+        "r": 0.121566929,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -56789,12 +56420,12 @@
       "GUID": "273844",
       "Name": "go_game_piece_black",
       "Transform": {
-        "posX": -27.6108456,
-        "posY": 0.188860059,
-        "posZ": 10.4325037,
-        "rotX": -0.00486473367,
-        "rotY": 0.0131288022,
-        "rotZ": 3.338242E-05,
+        "posX": -20.4519577,
+        "posY": 0.188966528,
+        "posZ": 11.6387815,
+        "rotX": -0.00486145169,
+        "rotY": 0.0138587449,
+        "rotZ": 3.3246175E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -56829,11 +56460,11 @@
       "GUID": "bc12eb",
       "Name": "Deck",
       "Transform": {
-        "posX": -3.40385413,
-        "posY": 0.460992277,
-        "posZ": 14.3005419,
-        "rotX": 0.004866523,
-        "rotY": 180.002213,
+        "posX": -3.40390348,
+        "posY": 0.460992217,
+        "posZ": 14.30042,
+        "rotX": 0.00485120434,
+        "rotY": 180.00209,
         "rotZ": 180.0,
         "scaleX": 1.25,
         "scaleY": 1.0,
@@ -56843,7 +56474,7 @@
       "Description": "",
       "GMNotes": "",
       "ColorDiffuse": {
-        "r": 0.121567167,
+        "r": 0.121566795,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -58545,10 +58176,10 @@
       "Name": "Deck",
       "Transform": {
         "posX": 27.8199768,
-        "posY": 0.17125769,
-        "posZ": 10.5300112,
-        "rotX": 0.004836029,
-        "rotY": 180.000153,
+        "posY": 0.171257675,
+        "posZ": 10.5300226,
+        "rotX": 0.00483611971,
+        "rotY": 180.00032,
         "rotZ": 179.999969,
         "scaleX": 1.25,
         "scaleY": 1.0,
@@ -58558,7 +58189,7 @@
       "Description": "",
       "GMNotes": "",
       "ColorDiffuse": {
-        "r": 0.121567048,
+        "r": 0.121566676,
         "g": 0.5333333,
         "b": 1.0
       },
@@ -60254,6 +59885,969 @@
           "XmlUI": ""
         }
       ]
+    },
+    {
+      "GUID": "a5a3ec",
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 0.0,
+        "posY": 0.3,
+        "posZ": 20.0,
+        "rotX": 0.0,
+        "rotY": 0.0,
+        "rotZ": 0.0,
+        "scaleX": 24.0,
+        "scaleY": 0.2,
+        "scaleZ": 0.5
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0,
+        "a": 0.509803951
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "2765a0",
+      "Name": "BlockSquare",
+      "Transform": {
+        "posX": 1.75364268,
+        "posY": 0.345517069,
+        "posZ": 12.8480291,
+        "rotX": 0.00485611148,
+        "rotY": 179.9992,
+        "rotZ": -4.063121E-06,
+        "scaleX": 1.5,
+        "scaleY": 0.1,
+        "scaleZ": 1.5
+      },
+      "Nickname": "Distance Counter",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 0.7229965,
+        "g": 0.152406275,
+        "b": 0.358788848
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": false,
+      "Grid": false,
+      "Snap": false,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": false,
+      "Tooltip": false,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "LuaScript": "scale_width = self.getScale().x\r\nscale_height = self.getScale().y\r\nscale_length = self.getScale().z\r\n\r\nfunction onLoad()\r\n    -- store text\r\n    --top_distance_table = {}\r\n    --bottom_distance_table = {}\r\n    --for _, obj in ipairs(getAllObjects()) do\r\n    --    local x = round(obj.getPosition().x)\r\n    --    local y = round(obj.getPosition().y)\r\n    --    if obj.type == '3D Text'\r\n    --        local z = round(obj.getPosition().z)\r\n    --        if z == 23 then\r\n    --            table.insert(top_distance_table, obj)\r\n    --        elseif z ==\r\n    --        end\r\n    --        and  then\r\n    --\r\n    --      end\r\n    --  end\r\n    --for i = -4, 4 do\r\n    --    local text = spawn_text({i * 3, 0.3, 23})\r\n    --    text.textTool.setValue(tostring(i))\r\n    --    --local text = spawn_text({i * 3, 0.5, 18})\r\n    --    --text.textTool.setValue(tostring(i))\r\n    --end\r\n\r\n    self.createButton({\r\n        function_owner  = self,\r\n        click_function  = 'toggle_on_off',\r\n        label           = '',\r\n        position        = {0, 0.5, 0},\r\n        scale           = {1/scale_width, 1/scale_height, 1/scale_length},\r\n        width           = 400,\r\n        height          = 400,\r\n        font_size       = 400,\r\n        color           = {0.5, 0.5, 0.5},\r\n        font_color      = {1, 1, 1}\r\n    })\r\nend\r\n\r\nfunction toggle_on_off()\r\nend\r\n\r\nfunction round(x)\r\n    return math.floor(x + 0.5)\r\nend\r\n",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "6fc2a4",
+      "Name": "3DText",
+      "Transform": {
+        "posX": -12.0000992,
+        "posY": 0.2999996,
+        "posZ": 23.00001,
+        "rotX": 90.0,
+        "rotY": 1.02947187,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "Text": {
+        "Text": "-4",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "c5d6cd",
+      "Name": "3DText",
+      "Transform": {
+        "posX": -9.00009251,
+        "posY": 0.2999996,
+        "posZ": 23.0000114,
+        "rotX": 90.0,
+        "rotY": 1.02947187,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "Text": {
+        "Text": "-3",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "cae029",
+      "Name": "3DText",
+      "Transform": {
+        "posX": -6.00009966,
+        "posY": 0.2999996,
+        "posZ": 23.0000114,
+        "rotX": 90.0,
+        "rotY": 1.02947187,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "Text": {
+        "Text": "-2",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "49792b",
+      "Name": "3DText",
+      "Transform": {
+        "posX": -3.00009561,
+        "posY": 0.2999996,
+        "posZ": 23.0000114,
+        "rotX": 90.0,
+        "rotY": 1.02947187,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "Text": {
+        "Text": "-1",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "09cf82",
+      "Name": "3DText",
+      "Transform": {
+        "posX": -6.484985E-05,
+        "posY": 0.2999996,
+        "posZ": 23.0000114,
+        "rotX": 90.0,
+        "rotY": 1.02947187,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "Text": {
+        "Text": "0",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "705f00",
+      "Name": "3DText",
+      "Transform": {
+        "posX": 2.99995446,
+        "posY": 0.2999996,
+        "posZ": 23.00001,
+        "rotX": 90.0,
+        "rotY": 2.50562877E-08,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "Text": {
+        "Text": "1",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "cf8a22",
+      "Name": "3DText",
+      "Transform": {
+        "posX": 5.999951,
+        "posY": 0.2999996,
+        "posZ": 23.00001,
+        "rotX": 90.0,
+        "rotY": 2.50562877E-08,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "Text": {
+        "Text": "2",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "6fe1f9",
+      "Name": "3DText",
+      "Transform": {
+        "posX": 8.999943,
+        "posY": 0.2999996,
+        "posZ": 23.0000114,
+        "rotX": 90.0,
+        "rotY": 2.50562877E-08,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "Text": {
+        "Text": "3",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "9bcf67",
+      "Name": "3DText",
+      "Transform": {
+        "posX": 11.9999428,
+        "posY": 0.2999996,
+        "posZ": 23.0000134,
+        "rotX": 90.0,
+        "rotY": 2.50562877E-08,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "Text": {
+        "Text": "4",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "f99bac",
+      "Name": "3DText",
+      "Transform": {
+        "posX": -12.0000467,
+        "posY": 0.300000042,
+        "posZ": 18.0000038,
+        "rotX": 90.0,
+        "rotY": -2.44667255E-08,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "Text": {
+        "Text": "-4",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "026102",
+      "Name": "3DText",
+      "Transform": {
+        "posX": -9.000047,
+        "posY": 0.300000042,
+        "posZ": 18.0000038,
+        "rotX": 90.0,
+        "rotY": -2.44667255E-08,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "Text": {
+        "Text": "-3",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "6c2c9d",
+      "Name": "3DText",
+      "Transform": {
+        "posX": -6.00004625,
+        "posY": 0.300000042,
+        "posZ": 18.0000038,
+        "rotX": 90.0,
+        "rotY": -2.44667255E-08,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "Text": {
+        "Text": "-2",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "6cf645",
+      "Name": "3DText",
+      "Transform": {
+        "posX": -3.000042,
+        "posY": 0.300000042,
+        "posZ": 18.0000038,
+        "rotX": 90.0,
+        "rotY": -2.44667255E-08,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "Text": {
+        "Text": "-1",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "b19306",
+      "Name": "3DText",
+      "Transform": {
+        "posX": -2.28881854E-05,
+        "posY": 0.300000042,
+        "posZ": 18.0000038,
+        "rotX": 90.0,
+        "rotY": -2.44667255E-08,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "Text": {
+        "Text": "0",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "d6df4e",
+      "Name": "3DText",
+      "Transform": {
+        "posX": 2.99997735,
+        "posY": 0.300000042,
+        "posZ": 18.0000038,
+        "rotX": 90.0,
+        "rotY": -2.44667255E-08,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "Text": {
+        "Text": "1",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "7c46c3",
+      "Name": "3DText",
+      "Transform": {
+        "posX": 5.999981,
+        "posY": 0.300000042,
+        "posZ": 18.0000038,
+        "rotX": 90.0,
+        "rotY": -2.44667255E-08,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "Text": {
+        "Text": "2",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "189a10",
+      "Name": "3DText",
+      "Transform": {
+        "posX": 8.999978,
+        "posY": 0.300000042,
+        "posZ": 18.0000038,
+        "rotX": 90.0,
+        "rotY": -2.44667255E-08,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "Text": {
+        "Text": "3",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "c33faa",
+      "Name": "3DText",
+      "Transform": {
+        "posX": 11.9999847,
+        "posY": 0.300000042,
+        "posZ": 18.0000038,
+        "rotX": 90.0,
+        "rotY": -2.44667255E-08,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "Text": {
+        "Text": "4",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
     }
   ]
 }
