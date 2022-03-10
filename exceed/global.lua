@@ -43,61 +43,19 @@ function onLoad()
     hp_counter_table = {
         Red = getObjectFromGUID('2d53fe'),
         Blue = getObjectFromGUID('7c2894')}
-
-    -- distance counter
-    arena_zone = getObjectFromGUID('a5a3ec')
-    distance_text = getObjectFromGUID('246491')
-    update_distance()
 end
 
 function onObjectEnterZone(zone, object)
     update_game(zone, object)
-    if zone == arena_zone
-        and object.type == 'Card'
-        and object.getName():find('(C)', 1, true) then
-        update_distance()
-    end
 end
 
 function onObjectLeaveZone(zone, object)
     update_game(zone, object)
-    if zone == arena_zone
-        and object.type == 'Card'
-        and object.getName():find('(C)', 1, true) then
-        update_distance()
-    end
 end
 
 function onPlayerTurn(player, previous_player)
     update_hp_counter('Red')
     update_hp_counter('Blue')
-end
-
-function update_distance()
-    -- get hero cards
-    local heroes = {}
-    for _, obj in ipairs(arena_zone.getObjects()) do
-        if obj.type == 'Card'
-            and obj.getName():find('(C)', 1, true)
-            and not obj.isSmoothMoving() then
-            table.insert(heroes, obj)
-        end
-    end
-
-    -- need exactly 2 hero cards
-    if #heroes ~= 2 then
-        return nil
-    end
-
-    -- calculate distance
-    local card_spacing_factor = 1.07
-    local card_width = heroes[1].getBounds().size.x
-    local x_distance = math.abs(
-        heroes[1].getPosition().x
-        - heroes[2].getPosition().x)
-    local tile_distance = round(x_distance / (card_width * card_spacing_factor))
-
-    distance_text.TextTool.setValue(tostring(tile_distance))
 end
 
 function update_game(zone, object)

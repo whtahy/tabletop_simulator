@@ -1,78 +1,102 @@
-scale_width = self.getScale().x
-scale_height = self.getScale().y
-scale_length = self.getScale().z
+arena_zone = getObjectFromGUID('a5a3ec')
+distance_text = getObjectFromGUID('246491')
 
 is_on = true
 arena_tile_width = 3
 
-font_size = 32
+font_size = 40
 font_color_enemy = {255/255, 194/255, 0/255}
 font_color_table = {
     [1] = {255/255, 215/255, 215/255}, -- red player
     [2] = {200/255, 255/255, 255/255}, -- blue player
 }
 
+scale_width = self.getScale().x
+scale_height = self.getScale().y
+scale_length = self.getScale().z
+
 function onLoad()
+    -- non interactive button
+    self.createButton({
+        function_owner  = self,
+        click_function  = 'n/a',
+        position        = {0, 0.5, 1/30 * scale_length},
+        scale           = {1/scale_width, 1/scale_height, 1/scale_length},
+        width           = 0,
+        height          = 0,
+        font_size       = 2/3 * 1000 * scale_length,
+        font_color      = font_color_enemy
+    })
+
+    -- interactive button
     self.createButton({
         function_owner  = self,
         click_function  = 'toggle_on_off',
-        label           = '',
-        position        = {0, 0.5, 0},
+        position        = {0, 0.5, 1/30 * scale_length},
         scale           = {1/scale_width, 1/scale_height, 1/scale_length},
-        width           = 400,
-        height          = 400,
-        font_size       = 400,
-        color           = {0.5, 0.5, 0.5},
-        font_color      = {1, 1, 1}
+        width           = 400 / 1.5 * scale_width,
+        height          = 400 / 1.5 * scale_height,
+        color           = {0, 0, 0, 0}
     })
 
-    -- global table of tables
-    -- i = 1: 1st table is top row
-    -- i = 2: 2nd table is bottom row
-    distance_tables = {}
-    local top_distance_table = {}
-    local bottom_distance_table = {}
+    checkpoint_table = {}
+    distance_tables = {
+        [1] = {}, -- top row of textboxes (red player)
+        [2] = {}  -- bottom row of textboxes (blue player)
+    }
+
     for _, obj in ipairs(getObjects()) do
         local x = round(obj.getPosition().x)
         local y = round(obj.getPosition().y)
         local z = round(obj.getPosition().z)
-        if obj.type == '3D Text'
+
+        if obj.type == 'Scripting'
+            and z == 20 then
+            table.insert(checkpoint_table, obj)
+        elseif obj.type == '3D Text'
             and y == 0
             and -12 <= x and x <= 12 then
             -- top row: red player
             if z == 23 then
                 obj.textTool.setFontSize(font_size)
-                table.insert(top_distance_table, obj)
+                obj.textTool.setFontColor(font_color_table[1])
+                table.insert(distance_tables[1], obj)
             -- bottom row: blue player
             elseif z == 18 then
                 obj.textTool.setFontSize(font_size)
                 obj.textTool.setFontColor(font_color_table[2])
-                table.insert(bottom_distance_table, obj)
+                table.insert(distance_tables[2], obj)
             end
         end
     end
 
-    table.sort(top_distance_table, by_x_position)
-    table.sort(bottom_distance_table, by_x_position)
-
-    table.insert(distance_tables, top_distance_table)
-    table.insert(distance_tables, bottom_distance_table)
+    table.sort(distance_tables[1], by_x_position)
+    table.sort(distance_tables[2], by_x_position)
 
     get_heroes()
     update_rangefinder()
 end
 
 function onObjectEnterZone(zone, object)
+    -- todo: new hero enter -> Wait.condition
     if is_on
         and (object == heroes[1] or object == heroes[2])
-        and zone == Global.getVar('arena_zone') then
+        and (zone == arena_zone or is_checkpoint(zone)) then
         update_rangefinder()
     end
 end
 
+function is_checkpoint(zone)
+    for _, obj in ipairs(checkpoint_table) do
+        if obj == zone then
+            return true
+        end
+    end
+    return false
+end
+
 function get_heroes()
     heroes = {}
-    local arena_zone = Global.getVar('arena_zone')
     for _, obj in ipairs(arena_zone.getObjects()) do
         if obj.type == 'Card'
             and obj.getName():find('(C)', 1, true) then
@@ -109,6 +133,7 @@ function update_rangefinder_row(row)
     local position = hero_position(row)
     local distance_table = distance_tables[row]
     distance_table[position].textTool.setValue(' ')
+
     for i = 1, 9 do
         local left = position - i
         if 1 <= left and left <= 9 then
@@ -126,6 +151,9 @@ function update_rangefinder_row(row)
 
     local enemy_position = hero_position(row % 2 + 1)
     distance_table[enemy_position].textTool.setFontColor(font_color_enemy)
+
+    local distance = math.abs(position - enemy_position)
+    self.editButton({label = tostring(distance)})
 end
 
 function hero_position(row)
