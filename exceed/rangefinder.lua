@@ -4,6 +4,13 @@ distance_text = getObjectFromGUID('246491')
 is_on = true
 arena_tile_width = 3
 
+hero_table = {}
+checkpoint_table = {}
+distance_tables = {
+    [1] = {}, -- top row of textboxes (red player)
+    [2] = {}  -- bottom row of textboxes (blue player)
+}
+
 font_size = 40
 font_color_enemy = {255/255, 194/255, 0/255}
 font_color_table = {
@@ -39,12 +46,6 @@ function onLoad()
         color           = {0, 0, 0, 0}
     })
 
-    checkpoint_table = {}
-    distance_tables = {
-        [1] = {}, -- top row of textboxes (red player)
-        [2] = {}  -- bottom row of textboxes (blue player)
-    }
-
     for _, obj in ipairs(getObjects()) do
         local x = round(obj.getPosition().x)
         local y = round(obj.getPosition().y)
@@ -73,16 +74,24 @@ function onLoad()
     table.sort(distance_tables[1], by_x_position)
     table.sort(distance_tables[2], by_x_position)
 
-    get_heroes()
+    update_hero_table()
     update_rangefinder()
 end
 
 function onObjectEnterZone(zone, object)
-    -- todo: new hero enter -> Wait.condition
-    if is_on
-        and (object == heroes[1] or object == heroes[2])
-        and (zone == arena_zone or is_checkpoint(zone)) then
-        update_rangefinder()
+    if is_on and (zone == arena_zone or is_checkpoint(zone)) then
+        if object == hero_table[1] or object == hero_table[2] then
+            update_rangefinder()
+        elseif is_hero(object) then
+            clear_rangefinder()
+            Wait.condition(
+                update_rangefinder,
+                function()
+                    update_hero_table()
+                    return #hero_table == 2
+                end
+            )
+        end
     end
 end
 
@@ -95,22 +104,25 @@ function is_checkpoint(zone)
     return false
 end
 
-function get_heroes()
-    heroes = {}
+function update_hero_table()
+    hero_table = {}
     for _, obj in ipairs(arena_zone.getObjects()) do
-        if obj.type == 'Card'
-            and obj.getName():find('(C)', 1, true) then
-            table.insert(heroes, obj)
+        if is_hero(obj) then
+            table.insert(hero_table, obj)
         end
     end
-    table.sort(heroes, by_x_position)
+    table.sort(hero_table, by_x_position)
+end
+
+function is_hero(object)
+    return object.type == 'Card' and object.getName():find('(C)', 1, true)
 end
 
 function toggle_on_off()
-    get_heroes()
     if is_on then
         clear_rangefinder()
     else
+        update_hero_table()
         update_rangefinder()
     end
     is_on = not is_on
@@ -157,7 +169,7 @@ function update_rangefinder_row(row)
 end
 
 function hero_position(row)
-    return 5 + round(heroes[row].getPosition().x / arena_tile_width)
+    return 5 + round(hero_table[row].getPosition().x / arena_tile_width)
 end
 
 function round(x, to)
