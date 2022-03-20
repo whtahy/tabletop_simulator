@@ -49,7 +49,7 @@ function onObjectDrop(player_color, object)
         and (
             object.getName() == "Hunter's Hut"
             or object.getName() == '') then
-        refresh()
+        Wait.time(refresh, 0.7)
     end
 end
 
